@@ -1,0 +1,17 @@
+# Netlify configuration for Tawthef
+# https://docs.netlify.com/configure-builds/file-based-configuration/
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # Tell Netlify secrets scanner to ignore these intentionally public Supabase keys
+  # These are SAFE to expose - anon key is designed for client-side use
+  SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_URL,VITE_SUPABASE_ANON_KEY"
+
+# SPA redirects - route all requests to index.html for client-side routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
