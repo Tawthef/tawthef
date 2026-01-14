@@ -1,0 +1,16 @@
+{
+    "name": "Tawthef",
+    "short_name": "Tawthef",
+    "description": "Enterprise recruitment platform for employers, agencies, and candidates",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#0B5FFF",
+    "icons": [
+        {
+            "src": "/tawthef-logo.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}
