@@ -31,7 +31,7 @@ const CTASection = () => {
           </p>
 
           {/* Feature pills */}
-          <div className="flex flex-wrap justify-center gap-4 mb-10">
+          <div className="flex flex-wrap justify-center gap-4 mb-8">
             {features.map((feature) => (
               <div
                 key={feature}
@@ -43,23 +43,23 @@ const CTASection = () => {
             ))}
           </div>
 
+          {/* Micro-divider */}
+          <div className="h-px w-12 bg-white/10 mx-auto my-8" />
+
           {/* CTA buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-5">
-            <Link to="/register">
+          <div className="w-full max-w-sm sm:max-w-none mx-auto flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
+            <Link to="/register" className="w-full sm:w-auto">
               <Button
-                variant="default"
-                size="lg"
-                className="group shadow-2xl shadow-primary/20 bg-primary hover:bg-primary/90 text-primary-foreground text-base font-semibold px-10 h-14"
+                className="w-full sm:w-auto h-12 text-base font-semibold bg-primary text-white shadow-lg transition-all hover:bg-primary/90 active:scale-[0.98] px-8 rounded-xl"
               >
                 Get Early Access
-                <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
               </Button>
             </Link>
-            <Link to="/contact">
+            <Link to="/contact" className="w-full sm:w-auto">
               <Button
                 variant="outline"
-                size="lg"
-                className="border-white/30 text-white hover:bg-white/15 hover:border-white/50 bg-white/5 text-base px-10 h-14"
+                className="w-full sm:w-auto h-12 rounded-xl border border-white/30 text-white bg-transparent transition-all hover:bg-white/10 hover:border-white/50 active:scale-[0.98] px-8"
               >
                 Request a Demo
               </Button>

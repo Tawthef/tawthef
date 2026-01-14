@@ -40,20 +40,21 @@ const HeroSection = () => {
           </div>
 
           {/* CTA Buttons - compact, Glozo-style */}
+          {/* CTA Buttons - mobile optimized */}
           <div
-            className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-8 animate-fade-in"
+            className="w-full max-w-[340px] md:max-w-none mx-auto flex flex-col md:flex-row items-center justify-center gap-3 sm:gap-4 mb-12 sm:mb-16 animate-fade-in"
             style={{ animationDelay: '0.2s' }}
           >
-            <Link to="/register">
+            <Link to="/register" className="w-full md:w-auto">
               <Button
-                className="group h-11 text-sm font-semibold px-8 bg-primary hover:bg-primary/90 text-white transition-all rounded-md shadow-sm"
+                className="w-full md:w-auto group h-[52px] md:h-11 text-base md:text-sm font-semibold px-8 bg-primary hover:bg-primary/90 text-white transition-all rounded-md shadow-md"
               >
                 Request Access
                 <ArrowRight className="w-4 h-4 ml-2 text-white/90 group-hover:translate-x-0.5 transition-transform" />
               </Button>
             </Link>
-            <a href="#intelligence">
-              <Button variant="outline" className="h-11 text-sm font-medium text-foreground/80 hover:text-foreground px-8 border-foreground/20 hover:border-foreground/40 rounded-md bg-transparent transition-colors">
+            <a href="#intelligence" className="w-full md:w-auto">
+              <Button variant="outline" className="w-full md:w-auto h-[50px] md:h-11 text-sm font-medium text-foreground/70 border border-border bg-transparent shadow-none px-8 rounded-md transition-all duration-200 hover:bg-muted hover:text-foreground active:scale-[0.98]">
                 See How It Works
               </Button>
             </a>
