@@ -10,6 +10,8 @@ import { useAuth } from "@/context/AuthContext";
 import logo from "@/assets/tawthef-logo-en.png";
 
 type UserRole = "candidate" | "agency" | "employer";
+type InitialRole = "candidate" | "recruiter";
+type RecruiterType = "employer" | "agency";
 
 const Register = () => {
   const navigate = useNavigate();
@@ -18,26 +20,55 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
+  const [initialRole, setInitialRole] = useState<InitialRole | null>(null);
+  const [recruiterType, setRecruiterType] = useState<RecruiterType | null>(null);
   const [formData, setFormData] = useState({ fullName: "", email: "", password: "", companyName: "" });
 
-  const roles = [
-    { id: "candidate" as UserRole, title: "Candidate", description: "Discover and apply to opportunities", icon: User, color: "from-primary/15 to-primary/5" },
-    { id: "agency" as UserRole, title: "Recruitment Agency", description: "Source talent for enterprise clients", icon: Users, color: "from-[hsl(235,75%,50%)]/15 to-[hsl(235,75%,50%)]/5" },
-    { id: "employer" as UserRole, title: "Employer", description: "Build your team with confidence", icon: Building2, color: "from-accent/15 to-accent/5" },
+  // Get final role for backend
+  const getFinalRole = (): UserRole => {
+    if (initialRole === "candidate") return "candidate";
+    if (initialRole === "recruiter" && recruiterType) return recruiterType;
+    return "candidate"; // fallback
+  };
+
+  const initialRoles = [
+    { id: "candidate" as InitialRole, title: "Candidate", description: "Discover and apply to opportunities", icon: User, color: "from-primary/15 to-primary/5" },
+    { id: "recruiter" as InitialRole, title: "Recruiter", description: "Source and place talent for employers", icon: Users, color: "from-accent/15 to-accent/5" },
+  ];
+
+  const recruiterTypes = [
+    { id: "employer" as RecruiterType, title: "Employer", description: "Hiring for my own company", icon: Building2, color: "from-primary/15 to-primary/5" },
+    { id: "agency" as RecruiterType, title: "Recruitment Agency", description: "Placing candidates for clients", icon: Briefcase, color: "from-accent/15 to-accent/5" },
   ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (step === 1 && selectedRole) { setStep(2); return; }
+
+    // Step 1: Initial role selection
+    if (step === 1 && initialRole) {
+      if (initialRole === "candidate") {
+        setStep(2); // Go directly to account details
+      } else if (initialRole === "recruiter") {
+        setStep(1.5); // Go to recruiter type selection
+      }
+      return;
+    }
+
+    // Step 1.5: Recruiter type selection
+    if (step === 1.5 && recruiterType) {
+      setStep(2); // Go to account details
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
 
     try {
+      // Call Supabase signup with metadata
       const { error: authError } = await signUp(formData.email, formData.password, {
         full_name: formData.fullName,
-        role: selectedRole || 'candidate',
+        role: getFinalRole(), // 'candidate' | 'employer' | 'agency'
+        company_name: formData.companyName, // For trigger to create organization
       });
 
       if (authError) {
@@ -81,6 +112,7 @@ const Register = () => {
           {/* Progress indicator - minimal & centered */}
           <div className="flex justify-center items-center gap-3 mb-10">
             <div className={cn("h-1.5 rounded-full transition-all duration-500", step === 1 ? "w-12 bg-primary" : "w-12 bg-primary/20")} />
+            <div className={cn("h-1.5 rounded-full transition-all duration-500", step === 1.5 ? "w-12 bg-primary" : step > 1.5 ? "w-12 bg-primary/20" : "w-2 bg-primary/20")} />
             <div className={cn("h-1.5 rounded-full transition-all duration-500", step === 2 ? "w-12 bg-primary" : "w-2 bg-primary/20")} />
           </div>
 
@@ -88,16 +120,16 @@ const Register = () => {
             <div className="space-y-8">
               <div className="text-center space-y-2">
                 <h1 className="text-3xl font-semibold text-foreground tracking-tight">
-                  Choose your role
+                  How will you use Tawthef?
                 </h1>
                 <p className="text-sm text-muted-foreground">
-                  How will you use Tawthef?
+                  Choose the option that best describes you
                 </p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-8">
-                <RadioGroup value={selectedRole || ""} onValueChange={(value) => setSelectedRole(value as UserRole)} className="grid gap-4">
-                  {roles.map((role) => (
+                <RadioGroup value={initialRole || ""} onValueChange={(value) => setInitialRole(value as InitialRole)} className="grid gap-4">
+                  {initialRoles.map((role) => (
                     <div key={role.id}>
                       <RadioGroupItem value={role.id} id={role.id} className="peer sr-only" />
                       <Label
@@ -105,26 +137,26 @@ const Register = () => {
                         className={cn(
                           "flex items-center gap-5 p-5 rounded-xl cursor-pointer transition-all duration-300 border-2",
                           "hover:border-primary/40 hover:bg-muted/40",
-                          selectedRole === role.id
+                          initialRole === role.id
                             ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary/10"
                             : "border-dotted border-border/60 bg-card/40 hover:border-solid"
                         )}
                       >
                         <div className={cn(
                           "w-12 h-12 rounded-lg flex items-center justify-center transition-all duration-300",
-                          selectedRole === role.id ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                          initialRole === role.id ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
                         )}>
                           <role.icon className="w-6 h-6" />
                         </div>
                         <div className="flex-1">
-                          <p className={cn("font-medium text-base transition-colors", selectedRole === role.id ? "text-primary" : "text-foreground")}>
+                          <p className={cn("font-medium text-base transition-colors", initialRole === role.id ? "text-primary" : "text-foreground")}>
                             {role.title}
                           </p>
                           <p className="text-sm text-muted-foreground/80 mt-0.5 font-normal">
                             {role.description}
                           </p>
                         </div>
-                        {selectedRole === role.id && (
+                        {initialRole === role.id && (
                           <CheckCircle className="w-5 h-5 text-primary animate-fade-in" />
                         )}
                       </Label>
@@ -135,7 +167,73 @@ const Register = () => {
                 <Button
                   type="submit"
                   className="w-full h-10 text-sm rounded-md font-semibold shadow-sm transition-all"
-                  disabled={!selectedRole}
+                  disabled={!initialRole}
+                >
+                  Continue
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </form>
+            </div>
+          ) : step === 1.5 ? (
+            <div className="space-y-8">
+              <div>
+                <button
+                  onClick={() => setStep(1)}
+                  className="text-xs text-muted-foreground hover:text-foreground mb-6 inline-flex items-center font-medium transition-colors"
+                >
+                  ← Back
+                </button>
+                <div className="text-center space-y-2">
+                  <h1 className="text-3xl font-semibold text-foreground tracking-tight">
+                    What type of recruiter are you?
+                  </h1>
+                  <p className="text-sm text-muted-foreground">
+                    This helps us customize your experience
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-8">
+                <RadioGroup value={recruiterType || ""} onValueChange={(value) => setRecruiterType(value as RecruiterType)} className="grid gap-4">
+                  {recruiterTypes.map((type) => (
+                    <div key={type.id}>
+                      <RadioGroupItem value={type.id} id={type.id} className="peer sr-only" />
+                      <Label
+                        htmlFor={type.id}
+                        className={cn(
+                          "flex items-center gap-5 p-5 rounded-xl cursor-pointer transition-all duration-300 border-2",
+                          "hover:border-primary/40 hover:bg-muted/40",
+                          recruiterType === type.id
+                            ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary/10"
+                            : "border-dotted border-border/60 bg-card/40 hover:border-solid"
+                        )}
+                      >
+                        <div className={cn(
+                          "w-12 h-12 rounded-lg flex items-center justify-center transition-all duration-300",
+                          recruiterType === type.id ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                        )}>
+                          <type.icon className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1">
+                          <p className={cn("font-medium text-base transition-colors", recruiterType === type.id ? "text-primary" : "text-foreground")}>
+                            {type.title}
+                          </p>
+                          <p className="text-sm text-muted-foreground/80 mt-0.5 font-normal">
+                            {type.description}
+                          </p>
+                        </div>
+                        {recruiterType === type.id && (
+                          <CheckCircle className="w-5 h-5 text-primary animate-fade-in" />
+                        )}
+                      </Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+
+                <Button
+                  type="submit"
+                  className="w-full h-10 text-sm rounded-md font-semibold shadow-sm transition-all"
+                  disabled={!recruiterType}
                 >
                   Continue
                   <ArrowRight className="w-4 h-4 ml-2" />
@@ -146,18 +244,18 @@ const Register = () => {
             <div className="space-y-8">
               <div>
                 <button
-                  onClick={() => setStep(1)}
+                  onClick={() => initialRole === "recruiter" ? setStep(1.5) : setStep(1)}
                   className="text-xs text-muted-foreground hover:text-foreground mb-6 inline-flex items-center font-medium transition-colors"
                 >
-                  ← Change role
+                  ← Back
                 </button>
                 <div className="text-center space-y-2">
                   <h1 className="text-3xl font-semibold text-foreground tracking-tight">
                     Create account
                   </h1>
                   <p className="text-sm text-muted-foreground">
-                    {selectedRole === "candidate" ? "Start your job search today" :
-                      selectedRole === "agency" ? "Set up your agency profile" :
+                    {initialRole === "candidate" ? "Start your job search today" :
+                      recruiterType === "agency" ? "Set up your agency profile" :
                         "Configure your company workspace"}
                   </p>
                 </div>
@@ -180,17 +278,17 @@ const Register = () => {
                   </div>
                 </div>
 
-                {(selectedRole === "agency" || selectedRole === "employer") && (
+                {initialRole === "recruiter" && (
                   <div className="space-y-1.5">
                     <Label htmlFor="companyName" className="text-sm font-medium text-foreground/80">
-                      {selectedRole === "agency" ? "Agency Name" : "Company Name"}
+                      {recruiterType === "agency" ? "Agency Name" : "Company Name"}
                     </Label>
                     <div className="relative">
                       <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60" />
                       <Input
                         id="companyName"
                         type="text"
-                        placeholder={selectedRole === "agency" ? "Acme Recruiting" : "Acme Corporation"}
+                        placeholder={recruiterType === "agency" ? "Acme Recruiting" : "Acme Corporation"}
                         className="pl-10 h-11 rounded-lg border-border/40 text-sm focus:border-primary/50 focus:ring-primary/20 transition-all"
                         value={formData.companyName}
                         onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}

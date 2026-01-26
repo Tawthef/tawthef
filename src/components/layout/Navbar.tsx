@@ -19,9 +19,8 @@ const Navbar = () => {
 
   const navLinks = [
     { name: "How It Works", href: "#how-it-works" },
-    { name: "For Employers", href: "#employers" },
-    { name: "For Agencies", href: "#agencies" },
-    { name: "Pricing", href: "#pricing" },
+    { name: "Recruiters", href: "#recruiters" },
+    { name: "Pricing", href: "/pricing" },
   ];
 
   return (
@@ -59,7 +58,7 @@ const Navbar = () => {
               <Button variant="ghost" size="sm" className="font-medium text-[13px] text-foreground/70 hover:text-foreground h-8 px-2 transition-colors">Sign In</Button>
             </Link>
             <Link to="/register">
-              <Button size="sm" className="font-semibold bg-primary hover:bg-primary/95 text-white text-[13px] h-8 px-4 rounded-md shadow-sm transition-all">Request Access</Button>
+              <Button size="sm" className="font-semibold bg-primary hover:bg-primary/95 text-white text-[13px] h-8 px-4 rounded-md shadow-sm transition-all">Get Started</Button>
             </Link>
           </div>
 

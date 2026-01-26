@@ -24,7 +24,7 @@ const DashboardLayout = ({ children, role: propRole, userName: propUserName, com
 
   // Use real profile data with fallbacks to props
   const userName = profile?.full_name || propUserName || user?.email?.split('@')[0] || "User";
-  const role = profile?.role || propRole || "candidate";
+  const role = profile?.role || propRole;
 
   // Close sidebar on route change
   useEffect(() => {

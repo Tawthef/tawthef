@@ -3,13 +3,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, MoreHorizontal, Building2, Calendar, Briefcase, Loader2, CheckCircle, Send } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Building2, Calendar, Briefcase, Loader2, CheckCircle, Send, BarChart3 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useJobs } from "@/hooks/useJobs";
 import { useProfile } from "@/hooks/useProfile";
 import { useApplications } from "@/hooks/useApplications";
+import { useJobSlots } from "@/hooks/useJobSlots";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 const getStatusBadge = (status: string) => {
   const config: Record<string, { label: string; className: string }> = {
@@ -33,6 +35,7 @@ const Jobs = () => {
   const { jobs, isLoading, error } = useJobs();
   const { profile } = useProfile();
   const { apply, hasApplied, isApplying } = useApplications();
+  const { hasAvailableSlots, remainingSlots } = useJobSlots();
   const [applyingJobId, setApplyingJobId] = useState<string | null>(null);
 
   const isEmployer = profile?.role === 'employer';
@@ -61,9 +64,28 @@ const Jobs = () => {
             </p>
           </div>
           {isEmployer && (
-            <Button className="w-full sm:w-fit shadow-xl shadow-primary/25 h-11 sm:h-14 lg:h-16 px-6 sm:px-8 lg:px-10 text-sm sm:text-base font-semibold rounded-xl sm:rounded-2xl" disabled>
-              <Plus className="w-5 h-5 mr-3" />Post New Job
-            </Button>
+            <div className="relative group">
+              <Button
+                className="w-full sm:w-fit shadow-xl shadow-primary/25 h-11 sm:h-14 lg:h-16 px-6 sm:px-8 lg:px-10 text-sm sm:text-base font-semibold rounded-xl sm:rounded-2xl"
+                disabled={!hasAvailableSlots}
+              >
+                <Plus className="w-5 h-5 mr-3" />
+                Post New Job
+                {hasAvailableSlots && remainingSlots > 0 && (
+                  <Badge className="ml-3 bg-white/20 text-white border-0">
+                    {remainingSlots} {remainingSlots === 1 ? 'slot' : 'slots'}
+                  </Badge>
+                )}
+              </Button>
+              {!hasAvailableSlots && (
+                <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover:block z-10">
+                  <div className="bg-foreground text-background text-xs px-3 py-2 rounded-lg whitespace-nowrap">
+                    Upgrade your plan to post more jobs
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-foreground" />
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
 
@@ -161,6 +183,12 @@ const Jobs = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-56 p-2 rounded-xl">
+                            <Link to={`/dashboard/jobs/${job.id}/report`}>
+                              <DropdownMenuItem className="py-3.5 px-4 rounded-lg font-medium">
+                                <BarChart3 className="w-4 h-4 mr-2" />
+                                View Report
+                              </DropdownMenuItem>
+                            </Link>
                             <DropdownMenuItem className="py-3.5 px-4 rounded-lg font-medium">View Details</DropdownMenuItem>
                             <DropdownMenuItem className="py-3.5 px-4 rounded-lg font-medium">Edit Position</DropdownMenuItem>
                             <DropdownMenuItem className="text-destructive py-3.5 px-4 rounded-lg font-medium">Close Position</DropdownMenuItem>

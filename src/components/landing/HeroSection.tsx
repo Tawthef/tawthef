@@ -19,50 +19,52 @@ const HeroSection = () => {
           {/* Announcement badge */}
           <div className="inline-flex items-center gap-2 bg-card/70 backdrop-blur-sm border border-border/30 rounded-full px-5 py-2 mb-6 shadow-sm animate-fade-in">
             <Sparkles className="w-3.5 h-3.5 text-accent" />
-            <span className="text-[13px] font-medium text-foreground/80">AI-Powered Enterprise Recruitment</span>
+            <span className="text-[13px] font-medium text-foreground/80">Transparent. Fair. Human.</span>
           </div>
 
-          {/* Main headline - compact typography */}
+          {/* Main headline - candidate-focused */}
           <div className="animate-slide-up">
             <h1 className="mb-6">
-              <span className="block text-lg sm:text-xl lg:text-2xl font-light text-foreground/50 tracking-wide mb-2">
-                The Future of
-              </span>
               <span className="block text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-primary tracking-tighter leading-[1.1]">
-                Structured Hiring
+                Find Jobs. Get Shortlisted.
+              </span>
+              <span className="block text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground tracking-tighter leading-[1.1] mt-2">
+                Get Hired.
               </span>
             </h1>
 
-            {/* Subheadline - concise */}
-            <p className="text-base lg:text-lg text-foreground/60 max-w-md mx-auto mb-8 leading-relaxed">
-              Accountable workflows. Two-level vetting. Zero blind spots.
+            {/* Subheadline - candidate value proposition */}
+            <p className="text-base lg:text-lg text-foreground/60 max-w-2xl mx-auto mb-8 leading-relaxed">
+              A modern hiring platform that connects candidates with trusted recruiters — transparently and fairly.
             </p>
           </div>
 
-          {/* CTA Buttons - compact, Glozo-style */}
-          {/* CTA Buttons - mobile optimized */}
+          {/* Single Primary CTA */}
           <div
-            className="w-full max-w-[340px] md:max-w-none mx-auto flex flex-col md:flex-row items-center justify-center gap-3 sm:gap-4 mb-12 sm:mb-16 animate-fade-in"
+            className="w-full max-w-[340px] md:max-w-none mx-auto flex flex-col items-center justify-center gap-4 mb-8 animate-fade-in"
             style={{ animationDelay: '0.2s' }}
           >
             <Link to="/register" className="w-full md:w-auto">
               <Button
-                className="w-full md:w-auto group h-[52px] md:h-11 text-base md:text-sm font-semibold px-8 bg-primary hover:bg-primary/90 text-white transition-all rounded-md shadow-md"
+                className="w-full md:w-auto group h-[52px] md:h-12 text-base md:text-sm font-semibold px-10 bg-primary hover:bg-primary/90 text-white transition-all rounded-md shadow-lg shadow-primary/20"
               >
-                Request Access
+                Create Your Free Profile
                 <ArrowRight className="w-4 h-4 ml-2 text-white/90 group-hover:translate-x-0.5 transition-transform" />
               </Button>
             </Link>
-            <a href="#intelligence" className="w-full md:w-auto">
-              <Button variant="outline" className="w-full md:w-auto h-[50px] md:h-11 text-sm font-medium text-foreground/70 border border-border bg-transparent shadow-none px-8 rounded-md transition-all duration-200 hover:bg-muted hover:text-foreground active:scale-[0.98]">
-                See How It Works
-              </Button>
+
+            {/* Low-emphasis recruiter link */}
+            <a
+              href="#recruiters"
+              className="text-sm text-foreground/50 hover:text-foreground/70 transition-colors font-medium"
+            >
+              Are you a Recruiter? Learn more →
             </a>
           </div>
 
-          {/* Authority signal */}
+          {/* Trust signal */}
           <p className="text-[11px] text-foreground/40 tracking-wide uppercase mb-12 animate-fade-in" style={{ animationDelay: '0.3s' }}>
-            Built for enterprise, agency, and technical hiring
+            Trusted by candidates and recruiters across the region
           </p>
         </div>
       </div>

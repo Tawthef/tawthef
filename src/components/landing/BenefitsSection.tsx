@@ -1,63 +1,56 @@
 import {
-  Building2,
-  Users,
-  Clock,
-  BarChart3,
+  Sparkles,
   Shield,
-  Zap,
   Eye,
-  CheckCircle2,
-  FileText,
+  Zap,
+  Users,
+  Building2,
   TrendingUp,
+  CheckCircle2,
   ArrowRight
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
 const BenefitsSection = () => {
-  const employerBenefits = [
+  const candidateBenefits = [
     {
-      icon: Clock,
-      title: "Reduce Time-to-Hire",
-      description: "Structured workflows eliminate bottlenecks and accelerate hiring by 40%.",
-    },
-    {
-      icon: CheckCircle2,
-      title: "Quality Candidates",
-      description: "Two-level shortlisting ensures you only see pre-vetted, qualified talent.",
+      icon: Sparkles,
+      title: "AI-Powered Matching",
+      description: "Get matched with jobs that fit your skills, experience, and career goals.",
     },
     {
       icon: Eye,
-      title: "Full Visibility",
-      description: "Track every candidate's journey with complete audit trails.",
+      title: "Transparent Process",
+      description: "Track your application status and see exactly where you stand in the hiring process.",
     },
-    {
-      icon: BarChart3,
-      title: "Hiring Analytics",
-      description: "Data-driven insights into performance, time-to-fill, and costs.",
-    },
-  ];
-
-  const agencyBenefits = [
     {
       icon: Shield,
-      title: "Protected Submissions",
-      description: "Candidates are protected until you choose to submit them.",
-    },
-    {
-      icon: FileText,
-      title: "Structured Feedback",
-      description: "Receive clear, actionable feedback on every submission.",
-    },
-    {
-      icon: TrendingUp,
-      title: "Performance Tracking",
-      description: "Track placement success and optimize sourcing strategies.",
+      title: "Quality Opportunities",
+      description: "Every job is vetted. Every recruiter is verified. No spam, no scams.",
     },
     {
       icon: Zap,
+      title: "Faster Hiring",
+      description: "Structured workflows mean faster responses and quicker decisions.",
+    },
+  ];
+
+  const recruiterBenefits = [
+    {
+      icon: Users,
+      title: "Quality Candidates",
+      description: "Access pre-vetted talent with verified skills and experience.",
+    },
+    {
+      icon: TrendingUp,
       title: "Streamlined Workflow",
-      description: "Manage multiple employer relationships from one dashboard.",
+      description: "Manage your entire hiring pipeline from one powerful dashboard.",
+    },
+    {
+      icon: CheckCircle2,
+      title: "Collaborative Hiring",
+      description: "Work seamlessly with your team and external partners.",
     },
   ];
 
@@ -70,51 +63,42 @@ const BenefitsSection = () => {
       </div>
 
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Employers Section */}
-        <div id="employers" className="mb-24 lg:mb-32">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-            {/* Left content */}
-            <div>
-              <div className="inline-flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center">
-                  <Building2 className="w-6 h-6 text-primary" />
-                </div>
-                <span className="text-xs font-bold text-primary uppercase tracking-widest">For Employers</span>
-              </div>
-              <h2 className="text-headline text-foreground mb-6">
-                Hire Better,<br />
-                <span className="text-primary">Faster</span>
-              </h2>
-              <p className="text-subhead mb-8 max-w-lg">
-                Streamline your hiring with structured workflows, agency collaboration,
-                and complete visibility into your talent pipeline.
-              </p>
-              <Link to="/register">
-                <Button variant="hero" size="lg" className="group text-sm px-6 h-12">
-                  Start Hiring <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                </Button>
-              </Link>
-            </div>
+        {/* Candidates Section - Primary Focus */}
+        <div className="mb-24 lg:mb-32">
+          <div className="text-center mb-16">
+            <h2 className="text-headline text-foreground mb-6">
+              Why Candidates <span className="text-primary">Love Tawthef</span>
+            </h2>
+            <p className="text-subhead max-w-2xl mx-auto">
+              A hiring platform built for transparency, fairness, and your success.
+            </p>
+          </div>
 
-            {/* Right cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {employerBenefits.map((benefit, index) => (
-                <div
-                  key={benefit.title}
-                  className="group card-float p-6"
-                >
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/12 to-primary/4 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-500">
-                    <benefit.icon className="w-6 h-6 text-primary" />
-                  </div>
-                  <h3 className="text-base font-semibold text-foreground mb-2">
-                    {benefit.title}
-                  </h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed font-normal">
-                    {benefit.description}
-                  </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
+            {candidateBenefits.map((benefit) => (
+              <div
+                key={benefit.title}
+                className="group card-float p-6 text-center"
+              >
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/12 to-primary/4 flex items-center justify-center mb-5 mx-auto group-hover:scale-110 transition-transform duration-500">
+                  <benefit.icon className="w-7 h-7 text-primary" />
                 </div>
-              ))}
-            </div>
+                <h3 className="text-base font-semibold text-foreground mb-2">
+                  {benefit.title}
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed font-normal">
+                  {benefit.description}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center mt-12">
+            <Link to="/register">
+              <Button variant="hero" size="lg" className="group text-sm px-8 h-12">
+                Create Your Profile <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+              </Button>
+            </Link>
           </div>
         </div>
 
@@ -123,70 +107,52 @@ const BenefitsSection = () => {
           <div className="absolute inset-0 flex items-center">
             <div className="w-full h-px bg-gradient-to-r from-transparent via-border/50 to-transparent" />
           </div>
-          <div className="relative flex justify-center">
-            <div className="bg-background/80 backdrop-blur-sm px-6 py-2.5 rounded-full border border-border/30">
-              <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Built for collaboration</span>
-            </div>
-          </div>
         </div>
 
-        {/* Agencies Section */}
-        <div id="agencies" className="pt-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-            {/* Left cards - reversed order on desktop */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 lg:order-1">
-              {agencyBenefits.map((benefit, index) => (
-                <div
-                  key={benefit.title}
-                  className="group card-float p-6"
-                >
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent/12 to-accent/4 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-500">
-                    <benefit.icon className="w-6 h-6 text-accent" />
-                  </div>
-                  <h3 className="text-base font-semibold text-foreground mb-2">
-                    {benefit.title}
-                  </h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed font-normal">
-                    {benefit.description}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            {/* Right content */}
-            <div className="lg:order-2">
-              <div className="inline-flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent/15 to-accent/5 flex items-center justify-center">
-                  <Users className="w-6 h-6 text-accent" />
-                </div>
-                <span className="text-xs font-bold text-accent uppercase tracking-widest">For Agencies</span>
+        {/* Recruiters Section - Secondary, Merged */}
+        <div id="recruiters" className="pt-8">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent/15 to-accent/5 flex items-center justify-center">
+                <Building2 className="w-6 h-6 text-accent" />
               </div>
-              <h2 className="text-headline text-foreground mb-6">
-                Protect Your<br />
-                <span className="text-primary">Relationships</span>
-              </h2>
-              <p className="text-subhead mb-8 max-w-lg">
-                Build transparent, long-term partnerships with enterprise employers
-                while protecting your candidate relationships.
-              </p>
-              <Link to="/register">
-                <Button variant="outline" size="lg" className="group text-sm px-6 h-12 border-accent/20 text-foreground hover:border-accent hover:bg-accent/5">
-                  Partner With Us <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform text-accent" />
-                </Button>
-              </Link>
+              <span className="text-xs font-bold text-accent uppercase tracking-widest">For Recruiters</span>
             </div>
+            <h2 className="text-headline text-foreground mb-6">
+              Built for <span className="text-primary">Hiring Teams</span>
+            </h2>
+            <p className="text-subhead max-w-2xl mx-auto">
+              Whether you're hiring for your own company or placing candidates for clients,
+              Tawthef streamlines your workflow.
+            </p>
           </div>
-        </div>
 
-        {/* Inline conversion CTA */}
-        <div className="text-center mt-16">
-          <a
-            href="#how-it-works"
-            className="inline-flex items-center gap-2 text-sm font-medium text-foreground/70 hover:text-primary transition-colors group"
-          >
-            See how this works in practice
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-          </a>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
+            {recruiterBenefits.map((benefit) => (
+              <div
+                key={benefit.title}
+                className="group card-float p-6"
+              >
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent/12 to-accent/4 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-500">
+                  <benefit.icon className="w-6 h-6 text-accent" />
+                </div>
+                <h3 className="text-base font-semibold text-foreground mb-2">
+                  {benefit.title}
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed font-normal">
+                  {benefit.description}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center mt-10">
+            <Link to="/register">
+              <Button variant="outline" size="lg" className="group text-sm px-8 h-12 border-accent/20 text-foreground hover:border-accent hover:bg-accent/5">
+                Get Started <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform text-accent" />
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
     </section>

@@ -6,8 +6,12 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import AccountSetup from "./pages/AccountSetup";
 import Dashboard from "./pages/Dashboard";
 import Jobs from "./pages/Jobs";
+import JobReport from "./pages/JobReport";
+import Pricing from "./pages/Pricing";
+import Billing from "./pages/Billing";
 import Candidates from "./pages/Candidates";
 import Applications from "./pages/Applications";
 import Profile from "./pages/Profile";
@@ -37,15 +41,19 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/pricing" element={<Pricing />} />
 
           {/* Protected routes - require authentication */}
           <Route element={<ProtectedRoute />}>
+            <Route path="/account/setup" element={<AccountSetup />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/dashboard/jobs" element={<Jobs />} />
+            <Route path="/dashboard/jobs/:jobId/report" element={<JobReport />} />
             <Route path="/dashboard/candidates" element={<Candidates />} />
             <Route path="/dashboard/applications" element={<Applications />} />
             <Route path="/dashboard/profile" element={<Profile />} />
             <Route path="/dashboard/settings" element={<Settings />} />
+            <Route path="/dashboard/billing" element={<Billing />} />
             <Route path="/dashboard/analytics" element={<Analytics />} />
             <Route path="/dashboard/pipeline" element={<Pipeline />} />
             <Route path="/dashboard/submissions" element={<AgencySubmissions />} />

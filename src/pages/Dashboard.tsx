@@ -207,10 +207,60 @@ const EmployerDashboard = () => {
   );
 };
 
+// Agency Dashboard Component
+const AgencyDashboard = () => {
+  const { profile } = useProfile();
+  const agencyStats = { activePlacements: 24, candidatesSubmitted: 89, successRate: "68%", revenue: "$142K" };
+  const statCards = [
+    { label: "Active Placements", value: agencyStats.activePlacements, icon: Users, trend: "+5 this month", color: "primary" },
+    { label: "Candidates Submitted", value: agencyStats.candidatesSubmitted, icon: TrendingUp, trend: "+18 this week", color: "primary" },
+    { label: "Success Rate", value: agencyStats.successRate, icon: TrendingUp, trend: "+4% vs last month", color: "success" },
+    { label: "Revenue (MTD)", value: agencyStats.revenue, icon: Briefcase, trend: "+$28K", color: "accent" },
+  ];
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-12">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-8">
+          <div>
+            <h1 className="text-3xl lg:text-4xl font-bold text-foreground tracking-tight">Dashboard</h1>
+            <p className="text-muted-foreground mt-2 text-lg font-light">
+              Welcome back, {profile?.full_name?.split(' ')[0] || 'there'}!
+            </p>
+          </div>
+          <Button size="lg" className="w-fit shadow-lg shadow-primary/20 h-14 px-8">
+            <Plus className="w-5 h-5 mr-2" />Submit Candidate
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          {statCards.map((stat) => (
+            <Card key={stat.label} className="card-dashboard">
+              <CardContent className="pt-8 pb-8">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-4">
+                    <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
+                    <p className="text-4xl lg:text-5xl font-bold text-foreground tracking-tight">{stat.value}</p>
+                    <p className="text-xs text-muted-foreground font-light">{stat.trend}</p>
+                  </div>
+                  <div className={`w-16 h-16 rounded-2xl bg-${stat.color}/10 flex items-center justify-center`}>
+                    <stat.icon className={`w-8 h-8 text-${stat.color}`} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+};
+
 // Main Dashboard Router
 const Dashboard = () => {
   const { profile, isLoading } = useProfile();
 
+  // Show loading state while profile is being fetched
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -221,11 +271,37 @@ const Dashboard = () => {
     );
   }
 
-  if (profile?.role === 'candidate') {
-    return <CandidateDashboard />;
+  // Role guard - block rendering if role is missing or invalid
+  if (!profile?.role || !['candidate', 'employer', 'agency', 'admin'].includes(profile.role)) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center py-20">
+          <Card className="max-w-md">
+            <CardContent className="pt-8 pb-8 text-center space-y-4">
+              <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto">
+                <User className="w-8 h-8 text-destructive" />
+              </div>
+              <h2 className="text-xl font-semibold text-foreground">Account Role Not Configured</h2>
+              <p className="text-muted-foreground">
+                Your account does not have a valid role assigned. Please contact support to resolve this issue.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    );
   }
 
-  return <EmployerDashboard />;
+  // Route to appropriate dashboard based on role
+  switch (profile.role) {
+    case 'employer':
+      return <EmployerDashboard />;
+    case 'agency':
+      return <AgencyDashboard />;
+    case 'candidate':
+    default:
+      return <CandidateDashboard />;
+  }
 };
 
 export default Dashboard;
