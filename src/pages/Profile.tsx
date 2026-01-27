@@ -11,7 +11,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 const Profile = () => {
-    const { profile: candidateProfile, isLoading, updateProfile, isUpdating } = useCandidateProfile();
+    const { profile: candidateProfile, isLoading, updateProfile, isUpdating, uploadCV, isUploading } = useCandidateProfile();
     const { profile: userProfile } = useProfile();
     const { toast } = useToast();
 
@@ -308,17 +308,84 @@ const Profile = () => {
                                 </CardHeader>
                                 <CardContent>
                                     {candidateProfile?.resume_url ? (
-                                        <div className="p-4 bg-success/10 rounded-xl text-center">
-                                            <FileText className="w-8 h-8 text-success mx-auto mb-2" />
-                                            <p className="text-sm font-medium text-success">Resume uploaded</p>
+                                        <div className="flex items-center justify-between p-4 bg-success/10 rounded-xl">
+                                            <div className="flex items-center gap-3">
+                                                <div className="bg-success/20 p-2 rounded-lg">
+                                                    <FileText className="w-6 h-6 text-success" />
+                                                </div>
+                                                <div className="text-left">
+                                                    <p className="text-sm font-medium text-success">Resume uploaded</p>
+                                                    <a href={candidateProfile.resume_url} target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:underline">
+                                                        View Resume
+                                                    </a>
+                                                </div>
+                                            </div>
+                                            <Button variant="ghost" size="sm" onClick={() => document.getElementById('resume-upload')?.click()}>
+                                                Update
+                                            </Button>
                                         </div>
                                     ) : (
-                                        <Button variant="outline" className="w-full h-20 rounded-xl border-dashed" disabled>
-                                            <div className="text-center">
-                                                <FileText className="w-6 h-6 mx-auto mb-1 text-muted-foreground" />
-                                                <span className="text-sm text-muted-foreground">Upload coming soon</span>
-                                            </div>
-                                        </Button>
+                                        <div className="relative">
+                                            <input
+                                                type="file"
+                                                id="resume-upload"
+                                                className="hidden"
+                                                accept=".pdf,.docx"
+                                                onChange={async (e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (file) {
+                                                        try {
+                                                            toast({ title: "Uploading...", description: "Please wait while we upload your resume." });
+                                                            const { resume_url } = await uploadCV(file);
+
+                                                            // Mock Parse Trigger
+                                                            toast({ title: "Analyzing Resume...", description: "AI is parsing your skills and experience." });
+                                                            setTimeout(async () => {
+                                                                // Mock Data mimicking AI extraction
+                                                                const mockSkills = ['Product Management', 'Market Research', 'Agile', 'Jira'];
+                                                                const mockExp = 4;
+                                                                const mockKeywords = ['Leadership', 'Strategy'];
+
+                                                                setSkills(prev => [...new Set([...prev, ...mockSkills])]);
+                                                                setYearsExperience(mockExp);
+                                                                setKeywords(prev => [...new Set([...prev, ...mockKeywords])]);
+                                                                setIsDirty(true);
+
+                                                                // Save parsed data
+                                                                await updateProfile({
+                                                                    skills: [...new Set([...skills, ...mockSkills])],
+                                                                    years_experience: mockExp,
+                                                                    keywords: [...new Set([...keywords, ...mockKeywords])],
+                                                                    resume_url
+                                                                });
+
+                                                                toast({ title: "Resume Parsed", description: "Skills and experience have been extracted." });
+                                                            }, 2000);
+
+                                                        } catch (err) {
+                                                            console.error(err);
+                                                            toast({ title: "Upload Failed", description: "Could not upload resume.", variant: "destructive" });
+                                                        }
+                                                    }
+                                                }}
+                                            />
+                                            <Button
+                                                variant="outline"
+                                                className="w-full h-24 rounded-xl border-dashed flex flex-col items-center justify-center gap-2 hover:bg-muted/50 transition-colors"
+                                                onClick={() => document.getElementById('resume-upload')?.click()}
+                                                disabled={isUploading}
+                                            >
+                                                {isUploading ? (
+                                                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                                                ) : (
+                                                    <FileText className="w-6 h-6 text-muted-foreground" />
+                                                )}
+                                                <div className="text-center">
+                                                    <span className="text-sm font-medium">Click to upload resume</span>
+                                                    <p className="text-xs text-muted-foreground mt-1">PDF or DOCX (Max 5MB)</p>
+                                                </div>
+                                            </Button>
+                                        </div>
                                     )}
                                 </CardContent>
                             </Card>

@@ -2,11 +2,12 @@ import { ReactNode, useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Briefcase, Users, FileText, Settings, LogOut, ChevronDown, Bell, Search, Building2, User, ClipboardList, BarChart3, UserCheck, Menu, X } from "lucide-react";
+import { LayoutDashboard, Briefcase, Users, FileText, Settings, LogOut, ChevronDown, Bell, Search, Building2, User, ClipboardList, BarChart3, UserCheck, Menu, TrendingUp } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import SidebarLogo from "./SidebarLogo";
 import { useProfile } from "@/hooks/useProfile";
 import { useAuth } from "@/context/AuthContext";
-import logo from "@/assets/tawthef-logo.png";
+
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -51,8 +52,8 @@ const DashboardLayout = ({ children, role: propRole, userName: propUserName, com
   const getNavItems = () => {
     switch (role) {
       case "candidate": return [{ name: "Dashboard", href: "/dashboard", icon: LayoutDashboard }, { name: "Browse Jobs", href: "/dashboard/jobs", icon: Briefcase }, { name: "My Applications", href: "/dashboard/applications", icon: FileText }, { name: "My Profile", href: "/dashboard/profile", icon: User }, { name: "Settings", href: "/dashboard/settings", icon: Settings }];
-      case "agency": return [{ name: "Dashboard", href: "/dashboard", icon: LayoutDashboard }, { name: "Job Requests", href: "/dashboard/jobs", icon: Briefcase }, { name: "Candidates", href: "/dashboard/candidates", icon: Users }, { name: "Recruiters", href: "/dashboard/team", icon: UserCheck }, { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 }, { name: "Settings", href: "/dashboard/settings", icon: Settings }];
-      case "employer": return [{ name: "Dashboard", href: "/dashboard", icon: LayoutDashboard }, { name: "Jobs", href: "/dashboard/jobs", icon: Briefcase }, { name: "Candidates", href: "/dashboard/candidates", icon: Users }, { name: "Pipeline", href: "/dashboard/pipeline", icon: ClipboardList }, { name: "Agencies", href: "/dashboard/agencies", icon: Building2 }, { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 }, { name: "Settings", href: "/dashboard/settings", icon: Settings }];
+      case "agency": return [{ name: "Dashboard", href: "/dashboard", icon: LayoutDashboard }, { name: "Job Requests", href: "/dashboard/jobs", icon: Briefcase }, { name: "Find Talent", href: "/dashboard/talent-search", icon: Search }, { name: "Candidates", href: "/dashboard/candidates", icon: Users }, { name: "Reports", href: "/dashboard/reports", icon: BarChart3 }, { name: "Recruiters", href: "/dashboard/team", icon: UserCheck }, { name: "Analytics", href: "/dashboard/analytics", icon: TrendingUp }, { name: "Settings", href: "/dashboard/settings", icon: Settings }];
+      case "employer": return [{ name: "Dashboard", href: "/dashboard", icon: LayoutDashboard }, { name: "Find Talent", href: "/dashboard/talent-search", icon: Search }, { name: "Jobs", href: "/dashboard/jobs", icon: Briefcase }, { name: "Candidates", href: "/dashboard/candidates", icon: Users }, { name: "Reports", href: "/dashboard/reports", icon: BarChart3 }, { name: "Pipeline", href: "/dashboard/pipeline", icon: ClipboardList }, { name: "Analytics", href: "/dashboard/analytics", icon: TrendingUp }, { name: "Settings", href: "/dashboard/settings", icon: Settings }];
       case "expert": return [{ name: "Dashboard", href: "/dashboard", icon: LayoutDashboard }, { name: "Review Queue", href: "/dashboard/reviews", icon: ClipboardList }, { name: "Completed", href: "/dashboard/completed", icon: UserCheck }, { name: "Settings", href: "/dashboard/settings", icon: Settings }];
       case "admin": return [{ name: "Dashboard", href: "/dashboard", icon: LayoutDashboard }, { name: "Tenants", href: "/dashboard/tenants", icon: Building2 }, { name: "Users", href: "/dashboard/users", icon: Users }, { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 }, { name: "Activity Logs", href: "/dashboard/logs", icon: FileText }, { name: "Settings", href: "/dashboard/settings", icon: Settings }];
       default: return [];
@@ -67,12 +68,7 @@ const DashboardLayout = ({ children, role: propRole, userName: propUserName, com
 
   const SidebarContent = () => (
     <>
-      <div className="h-20 lg:h-24 flex items-center justify-between px-6 lg:px-8 border-b border-sidebar-border/30">
-        <Link to="/"><img src={logo} alt="Tawthef" className="h-8 lg:h-10 w-auto brightness-0 invert opacity-90" /></Link>
-        <Button variant="ghost" size="icon" className="lg:hidden text-sidebar-foreground" onClick={() => setSidebarOpen(false)}>
-          <X className="w-5 h-5" />
-        </Button>
-      </div>
+      <SidebarLogo onMobileClose={() => setSidebarOpen(false)} />
       <nav className="flex-1 px-4 lg:px-5 py-6 lg:py-10 space-y-1.5 lg:space-y-2 overflow-y-auto">
         {navItems.map((item) => {
           const isActive = location.pathname === item.href;
