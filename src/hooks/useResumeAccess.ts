@@ -2,53 +2,38 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useProfile } from '@/hooks/useProfile';
 
-interface ResumeAccess {
-    id: string;
-    organization_id: string;
-    subscription_id: string;
-    start_date: string;
-    end_date: string;
-    is_active: boolean;
-}
-
 /**
- * Hook to check resume search access
+ * Hook to check resume search access via server-side RPC.
+ * Calls has_resume_access() which enforces expiry and validity server-side.
  */
 export function useResumeAccess() {
     const { profile } = useProfile();
 
     const query = useQuery({
-        queryKey: ['resume-access', profile?.organization_id],
-        queryFn: async (): Promise<ResumeAccess | null> => {
-            if (!profile?.organization_id) return null;
+        queryKey: ['resume-access-rpc', profile?.organization_id],
+        queryFn: async (): Promise<boolean> => {
+            if (!profile?.organization_id) return false;
 
             const { data, error } = await supabase
-                .from('resume_access')
-                .select('*')
-                .eq('organization_id', profile.organization_id)
-                .eq('is_active', true)
-                .gte('end_date', new Date().toISOString())
-                .order('end_date', { ascending: false })
-                .limit(1)
-                .single();
+                .rpc('has_resume_access', {
+                    p_org_id: profile.organization_id,
+                });
 
             if (error) {
-                // No access found is not an error
-                if (error.code === 'PGRST116') return null;
-                console.error('[useResumeAccess] Error:', error);
-                return null;
+                console.error('[useResumeAccess] RPC Error:', error);
+                return false;
             }
 
-            return data;
+            return !!data;
         },
         enabled: !!profile?.organization_id,
-        staleTime: 2 * 60 * 1000, // 2 minutes
+        staleTime: 60 * 1000, // 1 minute
     });
 
     return {
-        hasResumeAccess: !!query.data,
-        expiresAt: query.data?.end_date,
+        hasResumeAccess: query.data ?? false,
         isLoading: query.isLoading,
-        resumeAccess: query.data,
+        error: query.error,
+        refetch: query.refetch,
     };
 }

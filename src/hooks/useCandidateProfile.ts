@@ -6,104 +6,45 @@ export interface CandidateProfile {
     id: string;
     candidate_id: string;
     skills: string[];
+    job_titles: string[];
     years_experience: number;
     keywords: string[];
+    education: string[];
+    location: string;
     raw_text: string | null;
+    resume_text: string | null;
     resume_url: string | null;
+    parsed_at: string | null;
     created_at: string;
     updated_at: string;
 }
 
+export interface ParsedResumeData {
+    skills: string[];
+    job_titles: string[];
+    years_experience: number;
+    education: string[];
+    location: string;
+    keywords: string[];
+}
+
 interface UpdateProfileInput {
     skills?: string[];
+    job_titles?: string[];
     years_experience?: number;
     keywords?: string[];
+    education?: string[];
+    location?: string;
     raw_text?: string;
+    resume_text?: string;
     resume_url?: string;
+    parsed_at?: string;
 }
 
-/**
- * Simple keyword extraction from text
- */
-export function extractSkills(text: string): string[] {
-    const commonSkills = [
-        'javascript', 'typescript', 'react', 'angular', 'vue', 'node', 'python',
-        'java', 'c++', 'c#', 'go', 'rust', 'ruby', 'php', 'swift', 'kotlin',
-        'html', 'css', 'sql', 'nosql', 'mongodb', 'postgresql', 'mysql',
-        'aws', 'azure', 'gcp', 'docker', 'kubernetes', 'terraform',
-        'git', 'agile', 'scrum', 'jira', 'figma', 'photoshop',
-        'machine learning', 'data science', 'ai', 'nlp', 'deep learning',
-        'project management', 'leadership', 'communication', 'teamwork'
-    ];
-
-    const lowercaseText = text.toLowerCase();
-    return commonSkills.filter(skill => lowercaseText.includes(skill));
-}
+export type ParseStatus = 'idle' | 'uploading' | 'parsing' | 'done' | 'error';
 
 /**
- * Extract years of experience from text
- */
-export function extractExperience(text: string): number {
-    const patterns = [
-        /(\d+)\+?\s*years?\s*(?:of\s*)?experience/i,
-        /experience[:\s]*(\d+)\+?\s*years?/i,
-        /(\d+)\+?\s*years?\s*in/i,
-    ];
-
-    for (const pattern of patterns) {
-        const match = text.match(pattern);
-        if (match) {
-            return parseInt(match[1], 10);
-        }
-    }
-    return 0;
-}
-
-/**
- * Extract keywords from text
- */
-export function extractKeywords(text: string): string[] {
-    // Remove common words and extract meaningful keywords
-    const stopWords = new Set([
-        'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
-        'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been',
-        'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
-        'should', 'may', 'might', 'must', 'shall', 'can', 'need', 'this', 'that',
-        'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'my', 'your'
-    ]);
-
-    const words = text.toLowerCase()
-        .replace(/[^a-z0-9\s]/g, ' ')
-        .split(/\s+/)
-        .filter(word => word.length > 3 && !stopWords.has(word));
-
-    // Count word frequency
-    const freq: Record<string, number> = {};
-    words.forEach(word => {
-        freq[word] = (freq[word] || 0) + 1;
-    });
-
-    // Return top 20 keywords by frequency
-    return Object.entries(freq)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 20)
-        .map(([word]) => word);
-}
-
-/**
- * Parse CV text and extract structured data
- */
-export function parseCVText(text: string) {
-    return {
-        skills: extractSkills(text),
-        years_experience: extractExperience(text),
-        keywords: extractKeywords(text),
-        raw_text: text,
-    };
-}
-
-/**
- * Hook for managing candidate profile
+ * Hook for managing candidate profile with AI CV parsing
  */
 export function useCandidateProfile(candidateId?: string) {
     const { user } = useAuth();
@@ -127,7 +68,15 @@ export function useCandidateProfile(candidateId?: string) {
                 return null;
             }
 
-            return data;
+            return data ? {
+                ...data,
+                skills: data.skills || [],
+                job_titles: data.job_titles || [],
+                keywords: data.keywords || [],
+                education: data.education || [],
+                location: data.location || '',
+                years_experience: data.years_experience || 0,
+            } : null;
         },
         enabled: !!targetId,
         staleTime: 5 * 60 * 1000,
@@ -162,12 +111,16 @@ export function useCandidateProfile(candidateId?: string) {
         },
     });
 
-    // Upload CV and parse
+    // Upload CV file to Supabase Storage
     const uploadCVMutation = useMutation({
-        mutationFn: async (file: File) => {
+        mutationFn: async (file: File): Promise<{ resume_url: string }> => {
             if (!user) throw new Error('Not authenticated');
 
-            // Upload file
+            // Size check
+            if (file.size > 5 * 1024 * 1024) {
+                throw new Error('File size must be under 5MB');
+            }
+
             const filePath = `${user.id}/${Date.now()}_${file.name}`;
             const { error: uploadError } = await supabase.storage
                 .from('resumes')
@@ -175,29 +128,59 @@ export function useCandidateProfile(candidateId?: string) {
 
             if (uploadError) throw uploadError;
 
-            // Get public URL
             const { data: urlData } = supabase.storage
                 .from('resumes')
                 .getPublicUrl(filePath);
 
-            // For MVP: Extract text from PDF (basic - just store URL)
-            // In production, use a PDF parser library or edge function
-            const cvData = {
-                resume_url: urlData.publicUrl,
-            };
+            const resume_url = urlData.publicUrl;
 
-            // Update profile
-            await upsertMutation.mutateAsync(cvData);
+            // Save resume_url immediately
+            await upsertMutation.mutateAsync({ resume_url });
 
-            return cvData;
+            return { resume_url };
         },
     });
 
-    // Parse text and update profile
-    const parseTextMutation = useMutation({
-        mutationFn: async (text: string) => {
-            const parsed = parseCVText(text);
-            await upsertMutation.mutateAsync(parsed);
+    // Parse resume text via serverless function
+    const parseResumeMutation = useMutation({
+        mutationFn: async (resumeText: string): Promise<ParsedResumeData> => {
+            if (!user) throw new Error('Not authenticated');
+
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+
+            if (!token) throw new Error('No auth session');
+
+            // Call the Netlify serverless function
+            const response = await fetch('/api/parse-resume', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({ resume_text: resumeText }),
+            });
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.error || 'Failed to parse resume');
+            }
+
+            const parsed: ParsedResumeData = await response.json();
+
+            // Save parsed data to database
+            await upsertMutation.mutateAsync({
+                skills: parsed.skills,
+                job_titles: parsed.job_titles,
+                years_experience: parsed.years_experience,
+                education: parsed.education,
+                location: parsed.location,
+                keywords: parsed.keywords,
+                resume_text: resumeText,
+                raw_text: resumeText,
+                parsed_at: new Date().toISOString(),
+            });
+
             return parsed;
         },
     });
@@ -210,8 +193,37 @@ export function useCandidateProfile(candidateId?: string) {
         isUpdating: upsertMutation.isPending,
         uploadCV: uploadCVMutation.mutateAsync,
         isUploading: uploadCVMutation.isPending,
-        parseText: parseTextMutation.mutateAsync,
-        isParsing: parseTextMutation.isPending,
+        parseResume: parseResumeMutation.mutateAsync,
+        isParsing: parseResumeMutation.isPending,
         refetch: query.refetch,
     };
+}
+
+/**
+ * Basic client-side text extractor for PDF.
+ * For production, the serverless function receives the raw text.
+ * This is used as a best-effort client-side extraction.
+ */
+export async function extractTextFromFile(file: File): Promise<string> {
+    // For DOCX/TXT files, read as text
+    if (file.name.endsWith('.txt')) {
+        return await file.text();
+    }
+
+    // For PDF: use FileReader to extract what we can
+    // In production, a proper PDF parser (pdf.js) would be used
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const text = reader.result as string;
+            // Basic PDF text extraction - strips binary content
+            const extracted = text
+                .replace(/[^\x20-\x7E\n\r\t]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+            resolve(extracted || `[File: ${file.name}]`);
+        };
+        reader.onerror = () => resolve(`[File: ${file.name}]`);
+        reader.readAsText(file);
+    });
 }

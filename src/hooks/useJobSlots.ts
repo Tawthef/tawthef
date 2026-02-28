@@ -1,27 +1,62 @@
-import { useSubscription } from './useSubscription';
+import { useCallback } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import { useProfile } from './useProfile';
+import { useCheckSubscription } from './useSubscription';
 
 /**
- * Hook to manage job posting slots
+ * Hook to manage job posting slots via server-side RPC enforcement.
+ * Checks both job_slot_basic and job_slot_pro plans.
  */
 export function useJobSlots() {
-    const { subscriptions, isLoading } = useSubscription();
+    const { profile } = useProfile();
+    const queryClient = useQueryClient();
 
-    // Find active job posting subscription
-    const jobPostingSubscription = subscriptions.find(
-        sub => sub.plans?.type === 'job_posting'
-    );
+    // Check basic plan
+    const { check: basicCheck, isLoading: basicLoading } = useCheckSubscription('job_slot_basic');
+    // Check pro plan
+    const { check: proCheck, isLoading: proLoading } = useCheckSubscription('job_slot_pro');
 
-    const hasAvailableSlots = (jobPostingSubscription?.remaining_slots || 0) > 0;
-    const remainingSlots = jobPostingSubscription?.remaining_slots || 0;
-    const totalSlots = jobPostingSubscription?.plans?.job_slots || 0;
-    const expiresAt = jobPostingSubscription?.end_date;
+    // Combine: user has slots if either plan is valid with remaining usage
+    const isLoading = basicLoading || proLoading;
+    const hasAvailableSlots = basicCheck.is_valid || proCheck.is_valid;
+    const remainingSlots = basicCheck.remaining_usage + proCheck.remaining_usage;
+    const remainingDays = Math.max(basicCheck.remaining_days, proCheck.remaining_days);
+
+    // Mutation to consume a slot via RPC
+    const consumeMutation = useMutation({
+        mutationFn: async () => {
+            if (!profile?.organization_id) {
+                throw new Error('No organization found');
+            }
+
+            const { data, error } = await supabase
+                .rpc('consume_job_slot', { p_org_id: profile.organization_id });
+
+            if (error) {
+                // Surface the RPC error message
+                throw new Error(error.message || 'Failed to consume job slot');
+            }
+
+            return data;
+        },
+        onSuccess: () => {
+            // Invalidate subscription checks so UI updates
+            queryClient.invalidateQueries({ queryKey: ['check-subscription'] });
+        },
+    });
+
+    const consumeSlot = useCallback(async () => {
+        return consumeMutation.mutateAsync();
+    }, [consumeMutation]);
 
     return {
         hasAvailableSlots,
         remainingSlots,
-        totalSlots,
-        expiresAt,
+        remainingDays,
         isLoading,
-        subscription: jobPostingSubscription,
+        consumeSlot,
+        isConsuming: consumeMutation.isPending,
+        consumeError: consumeMutation.error,
     };
 }

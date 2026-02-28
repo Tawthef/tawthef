@@ -2,7 +2,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 
-export type UserRole = 'candidate' | 'employer' | 'agency' | 'admin';
+export type UserRole = 'candidate' | 'employer' | 'agency' | 'admin' | 'expert';
+
 
 export interface Profile {
     id: string;

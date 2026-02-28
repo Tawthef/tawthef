@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, MoreHorizontal, Building2, Calendar, Briefcase, Loader2, CheckCircle, Send, BarChart3 } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Building2, Calendar, Briefcase, Loader2, CheckCircle, Send, BarChart3, AlertTriangle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useJobs } from "@/hooks/useJobs";
@@ -12,6 +12,8 @@ import { useApplications } from "@/hooks/useApplications";
 import { useJobSlots } from "@/hooks/useJobSlots";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import UpgradeModal from "@/components/UpgradeModal";
+import { useToast } from "@/hooks/use-toast";
 
 const getStatusBadge = (status: string) => {
   const config: Record<string, { label: string; className: string }> = {
@@ -35,8 +37,10 @@ const Jobs = () => {
   const { jobs, isLoading, error } = useJobs();
   const { profile } = useProfile();
   const { apply, hasApplied, isApplying } = useApplications();
-  const { hasAvailableSlots, remainingSlots } = useJobSlots();
+  const { hasAvailableSlots, remainingSlots, consumeSlot, isConsuming } = useJobSlots();
   const [applyingJobId, setApplyingJobId] = useState<string | null>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const { toast } = useToast();
 
   const isEmployer = profile?.role === 'employer';
   const isCandidate = profile?.role === 'candidate';
@@ -49,6 +53,35 @@ const Jobs = () => {
       console.error('[Apply] Error:', err);
     } finally {
       setApplyingJobId(null);
+    }
+  };
+
+  const handlePostJob = async () => {
+    // Server-side enforcement: check if subscription is valid
+    if (!hasAvailableSlots) {
+      setShowUpgradeModal(true);
+      return;
+    }
+
+    try {
+      // Consume a slot via RPC before creating the job
+      await consumeSlot();
+      toast({
+        title: "Slot Reserved",
+        description: `Job slot consumed. ${remainingSlots - 1} remaining.`,
+      });
+      // TODO: Navigate to job creation form or open dialog
+    } catch (err: any) {
+      console.error('[PostJob] Failed to consume slot:', err);
+      if (err?.message?.includes('NO_AVAILABLE_SLOTS')) {
+        setShowUpgradeModal(true);
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to reserve job slot. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -67,9 +100,14 @@ const Jobs = () => {
             <div className="relative group">
               <Button
                 className="w-full sm:w-fit shadow-xl shadow-primary/25 h-11 sm:h-14 lg:h-16 px-6 sm:px-8 lg:px-10 text-sm sm:text-base font-semibold rounded-xl sm:rounded-2xl"
-                disabled={!hasAvailableSlots}
+                onClick={handlePostJob}
+                disabled={isConsuming}
               >
-                <Plus className="w-5 h-5 mr-3" />
+                {isConsuming ? (
+                  <Loader2 className="w-5 h-5 mr-3 animate-spin" />
+                ) : (
+                  <Plus className="w-5 h-5 mr-3" />
+                )}
                 Post New Job
                 {hasAvailableSlots && remainingSlots > 0 && (
                   <Badge className="ml-3 bg-white/20 text-white border-0">
@@ -88,6 +126,24 @@ const Jobs = () => {
             </div>
           )}
         </div>
+
+        {/* Upgrade banner for employers with no slots */}
+        {isEmployer && !hasAvailableSlots && (
+          <Card className="border-warning/30 bg-warning/5">
+            <CardContent className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="flex items-center gap-3 flex-1">
+                <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0" />
+                <div>
+                  <p className="font-semibold text-foreground text-sm">No job posting slots available</p>
+                  <p className="text-xs text-muted-foreground">Upgrade your plan to post new positions and reach more candidates.</p>
+                </div>
+              </div>
+              <Button size="sm" onClick={() => setShowUpgradeModal(true)}>
+                Upgrade Plan
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-5">
@@ -226,9 +282,15 @@ const Jobs = () => {
           </div>
         )}
       </div>
+
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        open={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        variant="job_slots"
+      />
     </DashboardLayout>
   );
 };
 
 export default Jobs;
-

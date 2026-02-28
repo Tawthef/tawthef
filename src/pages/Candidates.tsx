@@ -6,14 +6,19 @@ import { Input } from "@/components/ui/input";
 import { Search, Briefcase, Loader2, CheckCircle, XCircle, Clock, User } from "lucide-react";
 import { useEmployerApplications } from "@/hooks/useEmployerApplications";
 import { useProfile } from "@/hooks/useProfile";
+import { useUpdateApplicationStatus, getAllowedTransitions } from "@/hooks/useUpdateApplicationStatus";
+import StatusProgressBar from "@/components/StatusProgressBar";
 import { useState } from "react";
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   "applied": { label: "New", className: "bg-primary/10 text-primary" },
-  "employer_review": { label: "In Review", className: "bg-accent/10 text-accent" },
-  "agency_shortlisted": { label: "Shortlisted", className: "bg-success/10 text-success" },
-  "rejected": { label: "Rejected", className: "bg-destructive/10 text-destructive" },
+  "agency_shortlisted": { label: "Agency Shortlisted", className: "bg-blue-500/10 text-blue-600" },
+  "hr_shortlisted": { label: "HR Shortlisted", className: "bg-accent/10 text-accent" },
+  "technical_shortlisted": { label: "Technical Shortlisted", className: "bg-indigo-500/10 text-indigo-600" },
+  "interview": { label: "Interview", className: "bg-warning/10 text-warning" },
+  "offer": { label: "Offer Sent", className: "bg-success/10 text-success" },
   "hired": { label: "Hired", className: "bg-success/20 text-success" },
+  "rejected": { label: "Rejected", className: "bg-destructive/10 text-destructive" },
 };
 
 const formatDate = (dateString: string) => {
@@ -25,18 +30,19 @@ const formatDate = (dateString: string) => {
 };
 
 const Candidates = () => {
-  const { applications, isLoading, updateStatus, isUpdating } = useEmployerApplications();
+  const { applications, isLoading } = useEmployerApplications();
   const { profile } = useProfile();
+  const { updateStatus, isUpdating } = useUpdateApplicationStatus();
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  const isEmployer = profile?.role === 'employer';
+  const role = profile?.role || '';
 
-  const handleUpdateStatus = async (applicationId: string, status: string) => {
+  const handleAction = async (applicationId: string, newStatus: string) => {
     setUpdatingId(applicationId);
     try {
-      await updateStatus({ applicationId, status });
+      await updateStatus({ applicationId, newStatus });
     } catch (err) {
-      console.error('[Candidates] Update error:', err);
+      // Toast handled by hook
     } finally {
       setUpdatingId(null);
     }
@@ -50,7 +56,7 @@ const Candidates = () => {
           <div className="space-y-3">
             <h1 className="text-4xl lg:text-5xl font-bold text-foreground tracking-tight">Applications</h1>
             <p className="text-xl text-muted-foreground font-light max-w-xl">
-              Review and manage candidate applications
+              Review and manage candidate applications through the hiring pipeline
             </p>
           </div>
         </div>
@@ -89,91 +95,75 @@ const Candidates = () => {
         {/* Applications list */}
         {!isLoading && applications.length > 0 && (
           <div className="space-y-6">
-            {applications.map((app) => (
-              <Card key={app.id} className="card-float border-0 overflow-hidden">
-                <CardContent className="p-8 lg:p-10">
-                  <div className="flex flex-col lg:flex-row lg:items-center gap-8">
-                    {/* Candidate info */}
-                    <div className="flex items-center gap-6 flex-1">
-                      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/12 to-primary/4 flex items-center justify-center flex-shrink-0">
-                        <User className="w-7 h-7 text-primary" />
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-4 flex-wrap">
-                          <h3 className="text-xl font-semibold text-foreground">{app.candidate_name}</h3>
-                          <Badge className={statusConfig[app.status]?.className + " border-0 text-xs px-3 py-1 font-medium"}>
-                            {statusConfig[app.status]?.label || app.status}
-                          </Badge>
+            {applications.map((app) => {
+              const transitions = getAllowedTransitions(app.status, role);
+              const isThisUpdating = updatingId === app.id;
+
+              return (
+                <Card key={app.id} className="card-float border-0 overflow-hidden">
+                  <CardContent className="p-8 lg:p-10">
+                    <div className="space-y-6">
+                      <div className="flex flex-col lg:flex-row lg:items-center gap-8">
+                        {/* Candidate info */}
+                        <div className="flex items-center gap-6 flex-1">
+                          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/12 to-primary/4 flex items-center justify-center flex-shrink-0">
+                            <User className="w-7 h-7 text-primary" />
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-4 flex-wrap">
+                              <h3 className="text-xl font-semibold text-foreground">{app.candidate_name}</h3>
+                              <Badge className={statusConfig[app.status]?.className + " border-0 text-xs px-3 py-1 font-medium"}>
+                                {statusConfig[app.status]?.label || app.status}
+                              </Badge>
+                            </div>
+                            <p className="text-muted-foreground">{app.job_title}</p>
+                            <p className="text-sm text-muted-foreground/60 flex items-center gap-2">
+                              <Clock className="w-4 h-4" />
+                              Applied {formatDate(app.applied_at)}
+                            </p>
+                          </div>
                         </div>
-                        <p className="text-muted-foreground">{app.job_title}</p>
-                        <p className="text-sm text-muted-foreground/60 flex items-center gap-2">
-                          <Clock className="w-4 h-4" />
-                          Applied {formatDate(app.applied_at)}
-                        </p>
+
+                        {/* Context-aware action buttons */}
+                        {transitions.length > 0 && (
+                          <div className="flex items-center gap-3 flex-wrap">
+                            {transitions.map((t) => (
+                              <Button
+                                key={t.status}
+                                variant={t.variant === 'destructive' ? 'outline' : 'default'}
+                                className={
+                                  t.variant === 'destructive'
+                                    ? "h-11 px-5 rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10"
+                                    : "h-11 px-5 rounded-xl shadow-lg shadow-primary/20"
+                                }
+                                onClick={() => handleAction(app.id, t.status)}
+                                disabled={isThisUpdating}
+                              >
+                                {isThisUpdating ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    {t.variant === 'destructive' ? (
+                                      <XCircle className="w-4 h-4 mr-2" />
+                                    ) : (
+                                      <CheckCircle className="w-4 h-4 mr-2" />
+                                    )}
+                                    {t.label}
+                                  </>
+                                )}
+                              </Button>
+                            ))}
+                          </div>
+                        )}
                       </div>
+
+                      {/* Status Progress Bar */}
+                      <StatusProgressBar currentStatus={app.status} />
                     </div>
-
-                    {/* Actions - only for employers and pending applications */}
-                    {isEmployer && app.status === 'applied' && (
-                      <div className="flex items-center gap-3">
-                        <Button
-                          variant="outline"
-                          className="h-11 px-5 rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10"
-                          onClick={() => handleUpdateStatus(app.id, 'rejected')}
-                          disabled={updatingId === app.id}
-                        >
-                          {updatingId === app.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <>
-                              <XCircle className="w-4 h-4 mr-2" />
-                              Reject
-                            </>
-                          )}
-                        </Button>
-                        <Button
-                          className="h-11 px-5 rounded-xl shadow-lg shadow-primary/20"
-                          onClick={() => handleUpdateStatus(app.id, 'employer_review')}
-                          disabled={updatingId === app.id}
-                        >
-                          {updatingId === app.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <>
-                              <CheckCircle className="w-4 h-4 mr-2" />
-                              Approve
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    )}
-
-                    {/* Assign Reviewer - for applications in review */}
-                    {isEmployer && app.status === 'employer_review' && (
-                      <div className="flex items-center gap-3">
-                        <Button
-                          variant="outline"
-                          className="h-11 px-5 rounded-xl"
-                          disabled
-                        >
-                          <User className="w-4 h-4 mr-2" />
-                          Assign Reviewer
-                        </Button>
-                        <span className="text-sm text-muted-foreground">Under Review</span>
-                      </div>
-                    )}
-
-                    {/* Status indicator for other statuses */}
-                    {app.status !== 'applied' && app.status !== 'employer_review' && (
-                      <div className="text-sm text-muted-foreground">
-                        {app.status === 'rejected' && 'Rejected'}
-                        {app.status === 'hired' && 'Hired'}
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>
@@ -182,4 +172,3 @@ const Candidates = () => {
 };
 
 export default Candidates;
-

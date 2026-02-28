@@ -6,12 +6,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ClipboardCheck, Loader2, CheckCircle, XCircle, Clock, User, Star, Building2 } from "lucide-react";
 import { useTechnicalReviews } from "@/hooks/useTechnicalReviews";
+import { useUpdateApplicationStatus, getAllowedTransitions } from "@/hooks/useUpdateApplicationStatus";
+import { useProfile } from "@/hooks/useProfile";
+import StatusProgressBar from "@/components/StatusProgressBar";
 import { useState } from "react";
 
 const statusConfig: Record<string, { label: string; className: string }> = {
     "pending": { label: "Pending Review", className: "bg-warning/10 text-warning" },
     "approved": { label: "Approved", className: "bg-success/10 text-success" },
     "rejected": { label: "Rejected", className: "bg-destructive/10 text-destructive" },
+    "technical_shortlisted": { label: "Technical Shortlisted", className: "bg-indigo-500/10 text-indigo-600" },
+    "interview": { label: "Interview", className: "bg-warning/10 text-warning" },
 };
 
 const formatDate = (dateString: string) => {
@@ -29,19 +34,31 @@ interface ReviewFormState {
 
 const TechnicalReviews = () => {
     const { reviews, isLoading, submitReview, isSubmitting } = useTechnicalReviews();
+    const { updateStatus } = useUpdateApplicationStatus();
+    const { profile } = useProfile();
     const [activeReviewId, setActiveReviewId] = useState<string | null>(null);
     const [formState, setFormState] = useState<ReviewFormState>({ score: 3, feedback: '' });
     const [submittingId, setSubmittingId] = useState<string | null>(null);
+    const role = profile?.role || '';
 
     const handleSubmit = async (applicationId: string, decision: 'approved' | 'rejected') => {
         setSubmittingId(applicationId);
         try {
+            // 1. Submit technical review (score + feedback)
             await submitReview({
                 applicationId,
                 score: formState.score,
                 feedback: formState.feedback,
                 decision,
             });
+
+            // 2. Update application status via RPC
+            if (decision === 'approved') {
+                await updateStatus({ applicationId, newStatus: 'interview' });
+            } else {
+                await updateStatus({ applicationId, newStatus: 'rejected' });
+            }
+
             setActiveReviewId(null);
             setFormState({ score: 3, feedback: '' });
         } catch (err) {
@@ -120,6 +137,9 @@ const TechnicalReviews = () => {
                                         </Badge>
                                     </div>
 
+                                    {/* Status Progress */}
+                                    <StatusProgressBar currentStatus={review.status} />
+
                                     {/* Review Form */}
                                     {activeReviewId === review.id ? (
                                         <div className="space-y-6 pt-4 border-t border-border/30">
@@ -132,8 +152,8 @@ const TechnicalReviews = () => {
                                                             key={score}
                                                             onClick={() => setFormState(s => ({ ...s, score }))}
                                                             className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${formState.score >= score
-                                                                    ? 'bg-warning/20 text-warning'
-                                                                    : 'bg-muted/30 text-muted-foreground hover:bg-muted/50'
+                                                                ? 'bg-warning/20 text-warning'
+                                                                : 'bg-muted/30 text-muted-foreground hover:bg-muted/50'
                                                                 }`}
                                                         >
                                                             <Star className={`w-5 h-5 ${formState.score >= score ? 'fill-warning' : ''}`} />
@@ -189,7 +209,7 @@ const TechnicalReviews = () => {
                                                     ) : (
                                                         <>
                                                             <CheckCircle className="w-4 h-4 mr-2" />
-                                                            Approve
+                                                            Approve for Interview
                                                         </>
                                                     )}
                                                 </Button>
@@ -216,7 +236,7 @@ const TechnicalReviews = () => {
                         <h2 className="text-2xl font-semibold text-foreground">Completed Reviews ({completedReviews.length})</h2>
                         {completedReviews.map((review) => (
                             <Card key={review.id} className="card-float border-0 overflow-hidden opacity-70">
-                                <CardContent className="p-8 lg:p-10">
+                                <CardContent className="p-8 lg:p-10 space-y-4">
                                     <div className="flex flex-col lg:flex-row lg:items-center gap-8">
                                         <div className="flex items-center gap-6 flex-1">
                                             <div className="w-14 h-14 rounded-2xl bg-muted/30 flex items-center justify-center flex-shrink-0">
@@ -239,6 +259,7 @@ const TechnicalReviews = () => {
                                             </Badge>
                                         </div>
                                     </div>
+                                    <StatusProgressBar currentStatus={review.status} compact />
                                 </CardContent>
                             </Card>
                         ))}

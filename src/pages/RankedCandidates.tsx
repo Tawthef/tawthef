@@ -2,191 +2,276 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+    Award, Loader2, TrendingUp, Users, Filter, BrainCircuit,
+    Star, CheckCircle, Zap, SlidersHorizontal, UserCheck, ArrowRight
+} from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Award, Loader2, TrendingUp, Users, Filter } from "lucide-react";
-import { useApplicationScores } from "@/hooks/useApplicationScores";
+import { useRichCandidateScores } from "@/hooks/useApplicationScores";
+import { ScoreBreakdownCard, getMatchColor, MatchBadge } from "@/components/ScoreBreakdownCard";
 import { useProfile } from "@/hooks/useProfile";
-import { ScoreBreakdownCard } from "@/components/ScoreBreakdownCard";
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
+
+type SortMode = "best_match" | "most_experienced" | "recently_updated";
 
 const RankedCandidates = () => {
-    const { scores, isLoading } = useApplicationScores();
+    const [searchParams] = useSearchParams();
+    const jobId = searchParams.get("jobId") || undefined;
+
+    const { data: scores = [], isLoading } = useRichCandidateScores(jobId);
     const { profile } = useProfile();
+    const { toast } = useToast();
+
     const [minScore, setMinScore] = useState<number>(0);
-    const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+    const [sortMode, setSortMode] = useState<SortMode>("best_match");
 
-    const isEmployer = profile?.role === 'employer';
-    const isAgency = profile?.role === 'agency';
-    const isAdmin = profile?.role === 'admin';
+    const isRecruiter = profile && ["employer", "agency", "admin"].includes(profile.role || "");
 
-    const filteredScores = scores
-        .filter(s => s.score >= minScore)
-        .sort((a, b) => sortOrder === 'desc' ? b.score - a.score : a.score - b.score);
-
+    // ── Derived statistics ────────────────────────────────────────
     const avgScore = scores.length > 0
-        ? Math.round(scores.reduce((sum, s) => sum + s.score, 0) / scores.length)
+        ? Math.round(scores.reduce((s, c) => s + c.score, 0) / scores.length)
         : 0;
+    const top10pctScore = scores.length > 0
+        ? scores[Math.floor(scores.length * 0.1)]?.score || scores[0]?.score || 0
+        : 0;
+    const recommendedCount = scores.filter(s => s.score >= 75).length;
 
-    const topCandidates = scores.filter(s => s.score >= 75).length;
+    // ── Sorted + filtered list ────────────────────────────────────
+    const sorted = useMemo(() => {
+        const filtered = scores.filter(s => s.score >= minScore);
+        switch (sortMode) {
+            case "most_experienced":
+                return [...filtered].sort((a, b) => (b.years_experience ?? 0) - (a.years_experience ?? 0));
+            case "recently_updated":
+                return [...filtered].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            default: // best_match
+                return [...filtered].sort((a, b) => b.score - a.score);
+        }
+    }, [scores, minScore, sortMode]);
+
+    const recommended = sorted.filter(s => s.score >= 75).slice(0, 3);
+    const rest = sorted.slice(0, 50);
+
+    // ── Auto-shortlist handler ────────────────────────────────────
+    const handleAutoShortlist = () => {
+        const count = scores.filter(s => s.score >= 75).length;
+        if (count === 0) {
+            toast({ title: "No strong candidates", description: "No candidates scored ≥75 for this job." });
+            return;
+        }
+        toast({
+            title: `${count} candidate${count > 1 ? "s" : ""} recommended`,
+            description: "Candidates with ≥75 match score are highlighted below.",
+        });
+        setMinScore(75);
+    };
+
+    // ── Loading skeletons ─────────────────────────────────────────
+    if (isLoading) {
+        return (
+            <DashboardLayout>
+                <div className="space-y-8">
+                    <div className="space-y-2">
+                        <Skeleton className="h-10 w-64" />
+                        <Skeleton className="h-5 w-96" />
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                        {[1, 2, 3].map(i => <Skeleton key={i} className="h-24 rounded-xl" />)}
+                    </div>
+                    {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32 rounded-xl" />)}
+                </div>
+            </DashboardLayout>
+        );
+    }
 
     return (
         <DashboardLayout>
-            <div className="space-y-14">
-                {/* Page header */}
-                <div className="space-y-3">
-                    <h1 className="text-4xl lg:text-5xl font-bold text-foreground tracking-tight">
-                        {isAgency ? "Submission Rankings" : "Candidate Rankings"}
-                    </h1>
-                    <p className="text-xl text-muted-foreground font-light max-w-xl">
-                        {isAgency
-                            ? "See how your submitted candidates compare"
-                            : "AI-assisted candidate scoring with explainable breakdowns"
-                        }
-                    </p>
+            <div className="space-y-8 lg:space-y-10">
+
+                {/* ── Header ─────────────────────────────────── */}
+                <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+                    <div className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                            <BrainCircuit className="w-6 h-6 text-primary" />
+                            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">
+                                AI Candidate Rankings
+                            </h1>
+                        </div>
+                        <p className="text-muted-foreground text-base">
+                            Candidates ranked by AI match score · Skills · Experience · Fit
+                        </p>
+                    </div>
+
+                    {isRecruiter && scores.length > 0 && (
+                        <Button
+                            onClick={handleAutoShortlist}
+                            className="gap-2 shadow-lg shadow-primary/20 w-full sm:w-fit"
+                        >
+                            <Zap className="w-4 h-4" />
+                            Auto-Shortlist ≥75
+                        </Button>
+                    )}
                 </div>
 
-                {/* Loading state */}
-                {isLoading && (
-                    <div className="flex items-center justify-center py-20">
-                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                {/* ── KPI Summary ────────────────────────────── */}
+                {scores.length > 0 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        {[
+                            { label: "Total Candidates", value: scores.length, icon: Users, color: "primary" },
+                            { label: "Recommended (75+)", value: recommendedCount, icon: Star, color: "warning" },
+                            { label: "Average Score", value: `${avgScore}%`, icon: TrendingUp, color: "accent" },
+                            { label: "Top 10% Score", value: `${top10pctScore}%`, icon: Award, color: "success" },
+                        ].map(stat => (
+                            <Card key={stat.label} className="card-dashboard">
+                                <CardContent className="p-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-9 h-9 rounded-xl bg-${stat.color}/10 flex items-center justify-center shrink-0`}>
+                                            <stat.icon className={`w-4.5 h-4.5 text-${stat.color}`} />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">{stat.label}</p>
+                                            <p className="text-xl font-bold">{stat.value}</p>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
                     </div>
                 )}
 
-                {/* Stats Cards */}
-                {!isLoading && (isEmployer || isAdmin) && scores.length > 0 && (
-                    <div className="grid gap-6 md:grid-cols-3">
-                        <Card className="card-float border-0">
-                            <CardContent className="p-6">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                                        <Users className="w-6 h-6 text-primary" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">Total Scored</p>
-                                        <p className="text-2xl font-bold text-foreground">{scores.length}</p>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="card-float border-0">
-                            <CardContent className="p-6">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center">
-                                        <Award className="w-6 h-6 text-success" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">Top Candidates (75+)</p>
-                                        <p className="text-2xl font-bold text-foreground">{topCandidates}</p>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="card-float border-0">
-                            <CardContent className="p-6">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center">
-                                        <TrendingUp className="w-6 h-6 text-accent" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">Average Score</p>
-                                        <p className="text-2xl font-bold text-foreground">{avgScore}</p>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-                )}
-
-                {/* Filters */}
-                {!isLoading && scores.length > 0 && (
-                    <Card className="card-float border-0">
-                        <CardContent className="p-6">
-                            <div className="flex flex-wrap items-center gap-6">
-                                <div className="flex items-center gap-3">
-                                    <Filter className="w-5 h-5 text-muted-foreground" />
-                                    <span className="text-sm font-medium text-foreground">Filters:</span>
-                                </div>
-
+                {/* ── Smart Sorting & Filters ─────────────────── */}
+                {scores.length > 0 && (
+                    <Card className="card-dashboard">
+                        <CardContent className="p-4 sm:p-5">
+                            <div className="flex flex-wrap items-center gap-4">
                                 <div className="flex items-center gap-2">
-                                    <Label className="text-sm text-muted-foreground">Min Score:</Label>
-                                    <Select value={String(minScore)} onValueChange={(v) => setMinScore(Number(v))}>
-                                        <SelectTrigger className="w-24 h-9">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="0">Any</SelectItem>
-                                            <SelectItem value="25">25+</SelectItem>
-                                            <SelectItem value="50">50+</SelectItem>
-                                            <SelectItem value="75">75+</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
+                                    <span className="text-sm font-medium">Sort & Filter:</span>
                                 </div>
 
-                                <div className="flex items-center gap-2">
-                                    <Label className="text-sm text-muted-foreground">Sort:</Label>
-                                    <Select value={sortOrder} onValueChange={(v: 'desc' | 'asc') => setSortOrder(v)}>
-                                        <SelectTrigger className="w-32 h-9">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="desc">Highest First</SelectItem>
-                                            <SelectItem value="asc">Lowest First</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                                {/* Sort mode */}
+                                <Select value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
+                                    <SelectTrigger className="w-44 h-9 text-sm">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="best_match">
+                                            <span className="flex items-center gap-2"><BrainCircuit className="w-3.5 h-3.5 text-primary" />Best Match</span>
+                                        </SelectItem>
+                                        <SelectItem value="most_experienced">
+                                            <span className="flex items-center gap-2"><Award className="w-3.5 h-3.5 text-accent" />Most Experienced</span>
+                                        </SelectItem>
+                                        <SelectItem value="recently_updated">
+                                            <span className="flex items-center gap-2"><TrendingUp className="w-3.5 h-3.5 text-success" />Recently Updated</span>
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
 
-                                <Badge variant="outline" className="ml-auto">
-                                    {filteredScores.length} candidates
+                                {/* Min score filter */}
+                                <Select value={String(minScore)} onValueChange={(v) => setMinScore(Number(v))}>
+                                    <SelectTrigger className="w-32 h-9 text-sm">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="0">All scores</SelectItem>
+                                        <SelectItem value="40">40%+ match</SelectItem>
+                                        <SelectItem value="60">60%+ match</SelectItem>
+                                        <SelectItem value="75">75%+ match</SelectItem>
+                                        <SelectItem value="80">80%+ match</SelectItem>
+                                    </SelectContent>
+                                </Select>
+
+                                <Badge variant="outline" className="ml-auto text-xs">
+                                    {sorted.length} candidate{sorted.length !== 1 ? "s" : ""}
                                 </Badge>
                             </div>
                         </CardContent>
                     </Card>
                 )}
 
-                {/* Ranked List */}
-                {!isLoading && filteredScores.length > 0 && (
+                {/* ── Recommended Section ──────────────────────── */}
+                {recommended.length > 0 && (
                     <div className="space-y-4">
-                        {filteredScores.map((scoreData, idx) => (
-                            <div key={scoreData.id} className="relative">
-                                {idx < 3 && (
-                                    <div className="absolute -left-4 top-6 w-8 h-8 rounded-full bg-gradient-to-br from-warning to-warning/70 flex items-center justify-center text-warning-foreground font-bold text-sm shadow-lg">
-                                        #{idx + 1}
-                                    </div>
-                                )}
-                                <ScoreBreakdownCard
-                                    score={scoreData.score}
-                                    breakdown={scoreData.breakdown}
-                                    candidateName={scoreData.candidate_name || 'Unknown'}
-                                    jobTitle={scoreData.job_title}
-                                />
+                        <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-warning/10 border border-warning/25">
+                                <Star className="w-3.5 h-3.5 text-warning" />
+                                <span className="text-xs font-semibold text-warning">Top {recommended.length} Recommended Candidates</span>
                             </div>
-                        ))}
+                            <div className="flex-1 h-px bg-border/30" />
+                        </div>
+
+                        <div className="space-y-3">
+                            {recommended.map((s, idx) => (
+                                <ScoreBreakdownCard
+                                    key={s.id}
+                                    score={s.score}
+                                    breakdown={s.breakdown}
+                                    candidateName={s.candidate_name}
+                                    jobTitle={s.job_title}
+                                    matched_skills={s.matched_skills}
+                                    missing_skills={s.missing_skills}
+                                    ai_explanation={s.ai_explanation}
+                                    years_experience={s.years_experience}
+                                    rank={idx + 1}
+                                    isRecommended
+                                />
+                            ))}
+                        </div>
                     </div>
                 )}
 
-                {/* Empty state */}
-                {!isLoading && scores.length === 0 && (
+                {/* ── All Candidates ───────────────────────────── */}
+                {rest.length > 0 && (
+                    <div className="space-y-4">
+                        {recommended.length > 0 && (
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-muted-foreground">All Candidates</span>
+                                <div className="flex-1 h-px bg-border/30" />
+                            </div>
+                        )}
+                        <div className="space-y-3">
+                            {rest.map((s, idx) => (
+                                <ScoreBreakdownCard
+                                    key={s.id}
+                                    score={s.score}
+                                    breakdown={s.breakdown}
+                                    candidateName={s.candidate_name}
+                                    jobTitle={s.job_title}
+                                    matched_skills={s.matched_skills}
+                                    missing_skills={s.missing_skills}
+                                    ai_explanation={s.ai_explanation}
+                                    years_experience={s.years_experience}
+                                    rank={sortMode === "best_match" ? idx + 1 : undefined}
+                                    isRecommended={s.score >= 75}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* ── Empty state ──────────────────────────────── */}
+                {scores.length === 0 && (
                     <Card className="border-dashed">
                         <CardContent className="p-16 text-center">
-                            <Award className="w-16 h-16 text-muted-foreground/30 mx-auto mb-6" />
-                            <h3 className="text-xl font-semibold text-foreground mb-2">No scores yet</h3>
-                            <p className="text-muted-foreground">
-                                Candidate scores will appear here once applications are evaluated.
+                            <BrainCircuit className="w-16 h-16 text-muted-foreground/25 mx-auto mb-5" />
+                            <h3 className="text-xl font-semibold mb-2">No AI scores yet</h3>
+                            <p className="text-muted-foreground text-sm max-w-md mx-auto">
+                                AI match scores are generated automatically when candidates apply and have a parsed CV profile.
+                                Candidates need to upload their CV first.
                             </p>
                         </CardContent>
                     </Card>
                 )}
 
-                {/* Disclaimer */}
-                {!isLoading && scores.length > 0 && (
-                    <div className="p-4 bg-muted/20 rounded-xl border border-border/30">
-                        <p className="text-sm text-muted-foreground text-center">
-                            <strong>Note:</strong> AI scores are recommendations to help prioritize candidates.
+                {/* ── Footer note ──────────────────────────────── */}
+                {scores.length > 0 && (
+                    <div className="p-4 bg-muted/15 rounded-xl border border-border/20 text-center">
+                        <p className="text-xs text-muted-foreground">
+                            <BrainCircuit className="w-3.5 h-3.5 inline mr-1 text-primary" />
+                            AI scores are recommendations to help prioritize candidates.
                             All hiring decisions should be made by your team based on complete evaluations.
                         </p>
                     </div>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useProfile } from './useProfile';
+import { useResumeAccess } from './useResumeAccess';
 
 export interface TalentSearchResult {
     id: string;
@@ -26,6 +27,7 @@ interface SearchFilters {
 
 export function useTalentSearch() {
     const { profile } = useProfile();
+    const { hasResumeAccess, isLoading: accessLoading } = useResumeAccess();
     const [filters, setFilters] = useState<SearchFilters>({
         query: '',
         location: '',
@@ -36,9 +38,8 @@ export function useTalentSearch() {
     const [page, setPage] = useState(0);
     const PAGE_SIZE = 20;
 
-    // Check if user has subscription (mock for now, should check robustly)
-    // In a real app, strict checks should be server-side or via Subscription Hook
-    const hasAccess = true; // For demo purposes, we unlock. In prod, use useSubscription()
+    // Real access check via server-side RPC
+    const hasAccess = hasResumeAccess;
 
     const { data, isLoading, error, refetch } = useQuery({
         queryKey: ['talent-search', filters, page],

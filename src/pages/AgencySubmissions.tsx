@@ -3,18 +3,23 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Briefcase, Loader2, CheckCircle, Clock, Send, Building2, ArrowRight } from "lucide-react";
+import { Search, Briefcase, Loader2, CheckCircle, XCircle, Clock, Send, Building2 } from "lucide-react";
 import { useAgencyApplications } from "@/hooks/useAgencyApplications";
 import { useJobs } from "@/hooks/useJobs";
 import { useProfile } from "@/hooks/useProfile";
+import { useUpdateApplicationStatus, getAllowedTransitions } from "@/hooks/useUpdateApplicationStatus";
+import StatusProgressBar from "@/components/StatusProgressBar";
 import { useState } from "react";
 
 const statusConfig: Record<string, { label: string; className: string }> = {
     "applied": { label: "Pending Review", className: "bg-muted text-muted-foreground" },
     "agency_shortlisted": { label: "Shortlisted", className: "bg-success/10 text-success" },
-    "employer_review": { label: "Employer Reviewing", className: "bg-accent/10 text-accent" },
-    "rejected": { label: "Rejected", className: "bg-destructive/10 text-destructive" },
+    "hr_shortlisted": { label: "HR Shortlisted", className: "bg-accent/10 text-accent" },
+    "technical_shortlisted": { label: "Technical", className: "bg-indigo-500/10 text-indigo-600" },
+    "interview": { label: "Interview", className: "bg-warning/10 text-warning" },
+    "offer": { label: "Offer", className: "bg-success/10 text-success" },
     "hired": { label: "Hired", className: "bg-success/20 text-success" },
+    "rejected": { label: "Rejected", className: "bg-destructive/10 text-destructive" },
 };
 
 const formatDate = (dateString: string) => {
@@ -26,25 +31,26 @@ const formatDate = (dateString: string) => {
 };
 
 const AgencySubmissions = () => {
-    const { applications, isLoading, shortlist, isShortlisting } = useAgencyApplications();
+    const { applications, isLoading } = useAgencyApplications();
     const { jobs, isLoading: jobsLoading } = useJobs();
     const { profile } = useProfile();
-    const [shortlistingId, setShortlistingId] = useState<string | null>(null);
+    const { updateStatus, isUpdating } = useUpdateApplicationStatus();
+    const [updatingId, setUpdatingId] = useState<string | null>(null);
 
     const isAgency = profile?.role === 'agency';
+    const role = profile?.role || '';
 
-    const handleShortlist = async (applicationId: string) => {
-        setShortlistingId(applicationId);
+    const handleAction = async (applicationId: string, newStatus: string) => {
+        setUpdatingId(applicationId);
         try {
-            await shortlist(applicationId);
+            await updateStatus({ applicationId, newStatus });
         } catch (err) {
-            console.error('[AgencySubmissions] Shortlist error:', err);
+            // Toast handled by hook
         } finally {
-            setShortlistingId(null);
+            setUpdatingId(null);
         }
     };
 
-    // Filter employer jobs (agencies can submit to any open employer job)
     const employerJobs = jobs.filter(j => j.status === 'open');
 
     return (
@@ -136,74 +142,90 @@ const AgencySubmissions = () => {
                 {!isLoading && applications.length > 0 && (
                     <div className="space-y-6">
                         <h2 className="text-2xl font-semibold text-foreground">Your Submissions</h2>
-                        {applications.map((app) => (
-                            <Card key={app.id} className="card-float border-0 overflow-hidden">
-                                <CardContent className="p-8 lg:p-10">
-                                    <div className="flex flex-col lg:flex-row lg:items-center gap-8">
-                                        {/* Candidate info */}
-                                        <div className="flex items-center gap-6 flex-1">
-                                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/12 to-primary/4 flex items-center justify-center flex-shrink-0">
-                                                <span className="text-lg font-bold text-primary">
-                                                    {app.candidate_name?.split(" ").map(n => n[0]).join("") || "?"}
-                                                </span>
-                                            </div>
-                                            <div className="space-y-1">
-                                                <div className="flex items-center gap-4 flex-wrap">
-                                                    <h3 className="text-lg font-semibold text-foreground">{app.candidate_name}</h3>
-                                                    <Badge className={statusConfig[app.status]?.className + " border-0 text-xs px-3 py-1 font-medium"}>
-                                                        {statusConfig[app.status]?.label || app.status}
-                                                    </Badge>
+                        {applications.map((app) => {
+                            const transitions = getAllowedTransitions(app.status, role);
+                            const isThisUpdating = updatingId === app.id;
+
+                            return (
+                                <Card key={app.id} className="card-float border-0 overflow-hidden">
+                                    <CardContent className="p-8 lg:p-10">
+                                        <div className="space-y-6">
+                                            <div className="flex flex-col lg:flex-row lg:items-center gap-8">
+                                                {/* Candidate info */}
+                                                <div className="flex items-center gap-6 flex-1">
+                                                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/12 to-primary/4 flex items-center justify-center flex-shrink-0">
+                                                        <span className="text-lg font-bold text-primary">
+                                                            {app.candidate_name?.split(" ").map(n => n[0]).join("") || "?"}
+                                                        </span>
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <div className="flex items-center gap-4 flex-wrap">
+                                                            <h3 className="text-lg font-semibold text-foreground">{app.candidate_name}</h3>
+                                                            <Badge className={statusConfig[app.status]?.className + " border-0 text-xs px-3 py-1 font-medium"}>
+                                                                {statusConfig[app.status]?.label || app.status}
+                                                            </Badge>
+                                                        </div>
+                                                        <p className="text-muted-foreground">{app.job_title}</p>
+                                                        {app.organization_name && (
+                                                            <p className="text-sm text-muted-foreground/60 flex items-center gap-2">
+                                                                <Building2 className="w-4 h-4" />
+                                                                {app.organization_name}
+                                                            </p>
+                                                        )}
+                                                        <p className="text-sm text-muted-foreground/60 flex items-center gap-2">
+                                                            <Clock className="w-4 h-4" />
+                                                            Submitted {formatDate(app.applied_at)}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                                <p className="text-muted-foreground">{app.job_title}</p>
-                                                {app.organization_name && (
-                                                    <p className="text-sm text-muted-foreground/60 flex items-center gap-2">
-                                                        <Building2 className="w-4 h-4" />
-                                                        {app.organization_name}
-                                                    </p>
-                                                )}
-                                                <p className="text-sm text-muted-foreground/60 flex items-center gap-2">
-                                                    <Clock className="w-4 h-4" />
-                                                    Submitted {formatDate(app.applied_at)}
-                                                </p>
-                                            </div>
-                                        </div>
 
-                                        {/* Actions - only for pending submissions */}
-                                        {app.status === 'applied' && (
-                                            <Button
-                                                className="h-11 px-5 rounded-xl shadow-lg shadow-primary/20"
-                                                onClick={() => handleShortlist(app.id)}
-                                                disabled={shortlistingId === app.id}
-                                            >
-                                                {shortlistingId === app.id ? (
-                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                {/* Context-aware action buttons */}
+                                                {transitions.length > 0 ? (
+                                                    <div className="flex items-center gap-3 flex-wrap">
+                                                        {transitions.map((t) => (
+                                                            <Button
+                                                                key={t.status}
+                                                                variant={t.variant === 'destructive' ? 'outline' : 'default'}
+                                                                className={
+                                                                    t.variant === 'destructive'
+                                                                        ? "h-11 px-5 rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10"
+                                                                        : "h-11 px-5 rounded-xl shadow-lg shadow-primary/20"
+                                                                }
+                                                                onClick={() => handleAction(app.id, t.status)}
+                                                                disabled={isThisUpdating}
+                                                            >
+                                                                {isThisUpdating ? (
+                                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                                ) : (
+                                                                    <>
+                                                                        {t.variant === 'destructive' ? (
+                                                                            <XCircle className="w-4 h-4 mr-2" />
+                                                                        ) : (
+                                                                            <CheckCircle className="w-4 h-4 mr-2" />
+                                                                        )}
+                                                                        {t.label}
+                                                                    </>
+                                                                )}
+                                                            </Button>
+                                                        ))}
+                                                    </div>
                                                 ) : (
-                                                    <>
-                                                        <CheckCircle className="w-4 h-4 mr-2" />
-                                                        Shortlist for Employer
-                                                    </>
+                                                    <div className="text-sm text-muted-foreground">
+                                                        {app.status === 'rejected' && '❌ Rejected'}
+                                                        {app.status === 'hired' && '✅ Hired'}
+                                                        {!['rejected', 'hired', 'applied'].includes(app.status) && app.status !== 'applied' &&
+                                                            `⏳ ${statusConfig[app.status]?.label || app.status}`}
+                                                    </div>
                                                 )}
-                                            </Button>
-                                        )}
-
-                                        {/* Status indicator for processed submissions */}
-                                        {app.status === 'agency_shortlisted' && (
-                                            <div className="flex items-center gap-2 text-success">
-                                                <CheckCircle className="w-5 h-5" />
-                                                <span className="font-medium">Sent to Employer</span>
                                             </div>
-                                        )}
 
-                                        {app.status === 'employer_review' && (
-                                            <div className="flex items-center gap-2 text-accent">
-                                                <ArrowRight className="w-5 h-5" />
-                                                <span className="font-medium">Employer Reviewing</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
+                                            {/* Status Progress Bar */}
+                                            <StatusProgressBar currentStatus={app.status} />
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            );
+                        })}
                     </div>
                 )}
             </div>

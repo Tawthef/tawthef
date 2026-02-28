@@ -1,9 +1,13 @@
-# Netlify configuration for Tawthef
-# https://docs.netlify.com/configure-builds/file-based-configuration/
+[dev]
+  command = "npm run dev"
+  targetPort = 8080
+  port = 8888
+
 
 [build]
   command = "npm run build"
   publish = "dist"
+  functions = "netlify/functions"
 
 [build.environment]
   # Tell Netlify secrets scanner to ignore these intentionally public Supabase keys
@@ -12,6 +16,12 @@
 
 # SPA redirects - route all requests to index.html for client-side routing
 [[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+

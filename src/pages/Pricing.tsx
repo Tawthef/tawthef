@@ -6,13 +6,13 @@ import { usePlans } from "@/hooks/useSubscription";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Sparkles } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 
 const Pricing = () => {
     const { profile } = useProfile();
     const { plans, isLoading } = usePlans();
     const { toast } = useToast();
-    const navigate = useNavigate();
+    const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
     const canPurchase = profile && ['employer', 'agency', 'admin'].includes(profile.role);
 
@@ -29,65 +29,50 @@ const Pricing = () => {
         if (!profile?.organization_id) {
             toast({
                 title: "Error",
-                description: "Organization not found",
+                description: "Organization not found. Please complete account setup.",
                 variant: "destructive",
             });
             return;
         }
 
+        setLoadingPlan(planSlug);
+
         try {
-            // Find the plan
-            const plan = plans.find(p => p.slug === planSlug);
-            if (!plan) throw new Error('Plan not found');
+            // Get current auth token
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+            if (!token) throw new Error('Not authenticated');
 
-            // Calculate end date
-            const endDate = new Date();
-            endDate.setDate(endDate.getDate() + plan.duration_days);
+            // Call serverless function to create Stripe checkout session
+            const response = await fetch('/api/create-checkout-session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({ plan_type: planSlug }),
+            });
 
-            // Create subscription (mock purchase)
-            const { data: subscription, error: subError } = await supabase
-                .from('subscriptions')
-                .insert({
-                    organization_id: profile.organization_id,
-                    plan_id: plan.id,
-                    status: 'active',
-                    end_date: endDate.toISOString(),
-                    remaining_slots: plan.job_slots,
-                })
-                .select()
-                .single();
+            const data = await response.json();
 
-            if (subError) throw subError;
-
-            // If resume access, create resume_access record
-            if (plan.type === 'resume_access') {
-                const { error: resumeError } = await supabase
-                    .from('resume_access')
-                    .insert({
-                        organization_id: profile.organization_id,
-                        subscription_id: subscription.id,
-                        end_date: endDate.toISOString(),
-                    });
-
-                if (resumeError) throw resumeError;
+            if (!response.ok || !data.url) {
+                throw new Error(data.error || 'Failed to create payment session');
             }
 
-            toast({
-                title: "Purchase Successful!",
-                description: `You now have access to ${plan.name}`,
-            });
+            // Redirect to Stripe Checkout
+            window.location.href = data.url;
 
-            // Redirect to billing dashboard
-            navigate('/dashboard/billing');
-        } catch (error) {
+        } catch (error: any) {
             console.error('[Purchase] Error:', error);
             toast({
-                title: "Purchase Failed",
-                description: "Please try again later",
+                title: "Payment Error",
+                description: error.message || "Could not start payment. Please try again.",
                 variant: "destructive",
             });
+            setLoadingPlan(null);
         }
     };
+
 
     const getDuration = (days: number) => {
         if (days === 30) return '30 days';

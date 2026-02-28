@@ -9,11 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
     Search, MapPin, Briefcase, GraduationCap, Lock,
-    Filter, Star, Clock, ChevronDown, CheckCircle2, User, Phone, Mail
+    Filter, Star, Clock, ChevronDown, CheckCircle2, User, Phone, Mail, Sparkles
 } from "lucide-react";
 import { useTalentSearch, TalentSearchResult } from "@/hooks/useTalentSearch";
 import { useState } from "react";
-import { useSubscription } from "@/hooks/useSubscription";
+import UpgradeModal from "@/components/UpgradeModal";
 
 const TalentSearch = () => {
     const {
@@ -22,16 +22,10 @@ const TalentSearch = () => {
         isLoading,
         filters,
         setFilters,
-        hasAccess: hookHasAccess // Use hook or override
+        hasAccess,
     } = useTalentSearch();
 
-    // In a real scenario, useSubscription() coupled with RLS would be the source of truth
-    const { subscriptions } = useSubscription();
-    // Check if any subscription is active and has the 'resume_search' functionality (simplified for now)
-    // Assuming any active subscription grants access in this demo phase
-    const hasActiveSubscription = subscriptions?.some(sub => sub.status === 'active') || hookHasAccess;
-
-    const [locationInput, setLocationInput] = useState("");
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
     const handleSearch = () => {
         // Trigger search via filters update
@@ -75,6 +69,29 @@ const TalentSearch = () => {
                         </Button>
                     </div>
                 </div>
+
+                {/* Upgrade Banner — shown when no resume access */}
+                {!hasAccess && (
+                    <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-accent/5">
+                        <CardContent className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                            <div className="flex items-center gap-3 flex-1">
+                                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                    <Lock className="w-5 h-5 text-primary" />
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-foreground text-sm">Resume Search Access Required</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Subscribe to view full candidate profiles, contact details, and send messages.
+                                    </p>
+                                </div>
+                            </div>
+                            <Button size="sm" onClick={() => setShowUpgradeModal(true)} className="shadow-lg shadow-primary/20">
+                                <Sparkles className="w-4 h-4 mr-2" />
+                                Unlock Access
+                            </Button>
+                        </CardContent>
+                    </Card>
+                )}
 
                 <div className="flex flex-col lg:flex-row gap-6 h-full min-h-0">
                     {/* Filters Sidebar */}
@@ -146,7 +163,8 @@ const TalentSearch = () => {
                                 <CandidateCard
                                     key={candidate.id}
                                     candidate={candidate}
-                                    locked={!hasActiveSubscription}
+                                    locked={!hasAccess}
+                                    onUnlock={() => setShowUpgradeModal(true)}
                                 />
                             ))
                         ) : (
@@ -159,13 +177,20 @@ const TalentSearch = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Upgrade Modal */}
+            <UpgradeModal
+                open={showUpgradeModal}
+                onClose={() => setShowUpgradeModal(false)}
+                variant="resume_access"
+            />
         </DashboardLayout>
     );
 };
 
 
 // Sub-component for Candidate Card
-const CandidateCard = ({ candidate, locked }: { candidate: TalentSearchResult, locked: boolean }) => {
+const CandidateCard = ({ candidate, locked, onUnlock }: { candidate: TalentSearchResult, locked: boolean, onUnlock: () => void }) => {
     return (
         <Card className={`overflow-hidden transition-all hover:shadow-md border-l-4 ${locked ? 'border-l-muted' : 'border-l-primary'}`}>
             <CardContent className="p-0">
@@ -232,7 +257,7 @@ const CandidateCard = ({ candidate, locked }: { candidate: TalentSearchResult, l
                                 <Lock className="w-8 h-8 text-muted-foreground mb-2" />
                                 <p className="text-sm font-semibold text-foreground">Premium Access Only</p>
                                 <p className="text-xs text-muted-foreground mb-3">Subscribe to view full profile & contact.</p>
-                                <Button size="sm" className="w-full">Unlock Profile</Button>
+                                <Button size="sm" className="w-full" onClick={onUnlock}>Unlock Profile</Button>
                             </div>
                         )}
 
@@ -253,3 +278,4 @@ const CandidateCard = ({ candidate, locked }: { candidate: TalentSearchResult, l
 };
 
 export default TalentSearch;
+

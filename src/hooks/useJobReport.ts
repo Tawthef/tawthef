@@ -3,7 +3,32 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
 
-interface JobReportData {
+export interface JobProgressData {
+    total_applications: number;
+    agency_shortlisted_count: number;
+    hr_shortlisted_count: number;
+    technical_shortlisted_count: number;
+    interview_count: number;
+    offer_count: number;
+    hired_count: number;
+    rejected_count: number;
+}
+
+export interface JobTimelineEntry {
+    application_date: string;
+    count_per_day: number;
+}
+
+interface JobInfo {
+    id: string;
+    title: string;
+    location: string | null;
+    status: 'open' | 'closed' | 'draft';
+    created_at: string;
+    organization_id: string;
+}
+
+export interface JobReportResult {
     job: {
         id: string;
         title: string;
@@ -12,49 +37,26 @@ interface JobReportData {
         posted_at: string;
         total_candidates: number;
     };
-    kpis: {
-        total_applicants: number;
-        shortlisted: number;
-        in_interview: number;
-        offers_sent: number;
-        hired: number;
-    };
-    statusBreakdown: Array<{
-        status: string;
-        count: number;
-        color: string;
-    }>;
-    interviewSuitability: {
-        suitable: number;
-        not_suitable: number;
-    };
-    sources: Array<{
-        name: string;
-        value: number;
-    }>;
-    geography: Array<{
-        country: string;
-        count: number;
-    }>;
-    timeline: Array<{
-        date: string;
-        interviews: number;
-    }>;
+    progress: JobProgressData;
+    timeline: JobTimelineEntry[];
+    statusBreakdown: Array<{ status: string; count: number; color: string }>;
+    funnel: Array<{ stage: string; count: number; fill: string }>;
 }
 
 const STATUS_COLORS: Record<string, string> = {
-    applied: 'hsl(var(--muted))',
-    agency_shortlisted: 'hsl(var(--primary))',
-    employer_review: 'hsl(var(--accent))',
-    technical_approved: 'hsl(var(--warning))',
-    interviewed: 'hsl(var(--warning))',
-    offered: 'hsl(var(--success))',
+    applied: 'hsl(var(--muted-foreground))',
+    agency_shortlisted: 'hsl(220, 80%, 55%)',
+    hr_shortlisted: 'hsl(var(--primary))',
+    technical_shortlisted: 'hsl(var(--accent))',
+    interview: 'hsl(var(--warning))',
+    offer: 'hsl(45, 90%, 50%)',
     hired: 'hsl(var(--success))',
     rejected: 'hsl(var(--destructive))',
 };
 
 /**
- * Hook to fetch and aggregate job report data
+ * Hook to fetch job report data using server-side RPC functions.
+ * All aggregation happens in SQL views — no frontend computation.
  */
 export function useJobReport(jobId: string | undefined) {
     const { user } = useAuth();
@@ -62,10 +64,10 @@ export function useJobReport(jobId: string | undefined) {
 
     const query = useQuery({
         queryKey: ['job-report', jobId, profile?.organization_id],
-        queryFn: async (): Promise<JobReportData | null> => {
+        queryFn: async (): Promise<JobReportResult | null> => {
             if (!jobId || !user) return null;
 
-            // Fetch job details
+            // 1. Fetch job details (RLS filters by org)
             const { data: jobData, error: jobError } = await supabase
                 .from('jobs')
                 .select('id, title, location, status, created_at, organization_id')
@@ -77,115 +79,82 @@ export function useJobReport(jobId: string | undefined) {
                 return null;
             }
 
-            // Fetch applications for this job
-            let applicationsQuery = supabase
-                .from('applications')
-                .select(`
-          id,
-          status,
-          applied_at,
-          source,
-          candidate_id,
-          profiles!applications_candidate_id_fkey(country)
-        `)
-                .eq('job_id', jobId);
+            const job = jobData as JobInfo;
 
-            // If agency, filter to only their submissions
-            if (profile?.role === 'agency' && profile?.organization_id) {
-                applicationsQuery = applicationsQuery.eq('agency_id', profile.organization_id);
-            }
+            // 2. Fetch aggregated progress via RPC
+            const { data: progressData, error: progressError } = await supabase
+                .rpc('get_job_progress', { p_job_id: jobId });
 
-            const { data: applications, error: appsError } = await applicationsQuery;
-
-            if (appsError) {
-                console.error('[useJobReport] Error fetching applications:', appsError);
+            if (progressError) {
+                console.error('[useJobReport] Error fetching progress:', progressError);
                 return null;
             }
 
-            const apps = applications || [];
-
-            // Calculate KPIs
-            const kpis = {
-                total_applicants: apps.length,
-                shortlisted: apps.filter(a => ['agency_shortlisted', 'employer_review', 'technical_approved', 'interviewed', 'offered', 'hired'].includes(a.status)).length,
-                in_interview: apps.filter(a => a.status === 'interviewed').length,
-                offers_sent: apps.filter(a => ['offered', 'hired'].includes(a.status)).length,
-                hired: apps.filter(a => a.status === 'hired').length,
+            const row = Array.isArray(progressData) ? progressData[0] : progressData;
+            const progress: JobProgressData = {
+                total_applications: row?.total_applications ?? 0,
+                agency_shortlisted_count: row?.agency_shortlisted_count ?? 0,
+                hr_shortlisted_count: row?.hr_shortlisted_count ?? 0,
+                technical_shortlisted_count: row?.technical_shortlisted_count ?? 0,
+                interview_count: row?.interview_count ?? 0,
+                offer_count: row?.offer_count ?? 0,
+                hired_count: row?.hired_count ?? 0,
+                rejected_count: row?.rejected_count ?? 0,
             };
 
-            // Status breakdown
-            const statusCounts: Record<string, number> = {};
-            apps.forEach(app => {
-                statusCounts[app.status] = (statusCounts[app.status] || 0) + 1;
-            });
+            // 3. Fetch timeline via RPC
+            const { data: timelineData, error: timelineError } = await supabase
+                .rpc('get_job_timeline', { p_job_id: jobId });
 
-            const statusBreakdown = Object.entries(statusCounts).map(([status, count]) => ({
-                status: status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-                count,
-                color: STATUS_COLORS[status] || 'hsl(var(--muted))',
-            }));
-
-            // Interview suitability (technical_approved or better)
-            const suitable = apps.filter(a => ['technical_approved', 'interviewed', 'offered', 'hired'].includes(a.status)).length;
-            const interviewSuitability = {
-                suitable,
-                not_suitable: apps.length - suitable,
-            };
-
-            // Candidate sources
-            const sourceCounts: Record<string, number> = {};
-            apps.forEach(app => {
-                const source = app.source || 'direct';
-                sourceCounts[source] = (sourceCounts[source] || 0) + 1;
-            });
-
-            const sources = Object.entries(sourceCounts).map(([name, value]) => ({
-                name: name.charAt(0).toUpperCase() + name.slice(1),
-                value,
-            }));
-
-            // Geography distribution
-            const countryCounts: Record<string, number> = {};
-            apps.forEach(app => {
-                const country = (app.profiles as any)?.country || 'Unknown';
-                countryCounts[country] = (countryCounts[country] || 0) + 1;
-            });
-
-            const geography = Object.entries(countryCounts)
-                .map(([country, count]) => ({ country, count }))
-                .sort((a, b) => b.count - a.count);
-
-            // Interview timeline (mock data - would need interviews table)
-            const timeline: Array<{ date: string; interviews: number }> = [];
-            const today = new Date();
-            for (let i = 6; i >= 0; i--) {
-                const date = new Date(today);
-                date.setDate(date.getDate() - i);
-                timeline.push({
-                    date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-                    interviews: Math.floor(Math.random() * 5), // Mock data
-                });
+            if (timelineError) {
+                console.error('[useJobReport] Error fetching timeline:', timelineError);
             }
+
+            const timeline: JobTimelineEntry[] = (timelineData || []).map((t: any) => ({
+                application_date: t.application_date,
+                count_per_day: t.count_per_day,
+            }));
+
+            // 4. Build status breakdown for bar chart
+            const statusBreakdown = [
+                { status: 'Applied', count: progress.total_applications, color: STATUS_COLORS.applied },
+                { status: 'Agency Shortlisted', count: progress.agency_shortlisted_count, color: STATUS_COLORS.agency_shortlisted },
+                { status: 'HR Shortlisted', count: progress.hr_shortlisted_count, color: STATUS_COLORS.hr_shortlisted },
+                { status: 'Technical', count: progress.technical_shortlisted_count, color: STATUS_COLORS.technical_shortlisted },
+                { status: 'Interview', count: progress.interview_count, color: STATUS_COLORS.interview },
+                { status: 'Offer', count: progress.offer_count, color: STATUS_COLORS.offer },
+                { status: 'Hired', count: progress.hired_count, color: STATUS_COLORS.hired },
+                { status: 'Rejected', count: progress.rejected_count, color: STATUS_COLORS.rejected },
+            ].filter(s => s.count > 0);
+
+            // 5. Build funnel (ordered stages, excluding rejected)
+            const funnel = [
+                { stage: 'Applied', count: progress.total_applications, fill: STATUS_COLORS.applied },
+                { stage: 'Agency Shortlisted', count: progress.agency_shortlisted_count, fill: STATUS_COLORS.agency_shortlisted },
+                { stage: 'HR Shortlisted', count: progress.hr_shortlisted_count, fill: STATUS_COLORS.hr_shortlisted },
+                { stage: 'Technical', count: progress.technical_shortlisted_count, fill: STATUS_COLORS.technical_shortlisted },
+                { stage: 'Interview', count: progress.interview_count, fill: STATUS_COLORS.interview },
+                { stage: 'Offer', count: progress.offer_count, fill: STATUS_COLORS.offer },
+                { stage: 'Hired', count: progress.hired_count, fill: STATUS_COLORS.hired },
+            ];
 
             return {
                 job: {
-                    id: jobData.id,
-                    title: jobData.title,
-                    location: jobData.location,
-                    status: jobData.status as 'open' | 'closed' | 'draft',
-                    posted_at: jobData.created_at,
-                    total_candidates: apps.length,
+                    id: job.id,
+                    title: job.title,
+                    location: job.location,
+                    status: job.status as 'open' | 'closed' | 'draft',
+                    posted_at: job.created_at,
+                    total_candidates: progress.total_applications,
                 },
-                kpis,
-                statusBreakdown,
-                interviewSuitability,
-                sources,
-                geography,
+                progress,
                 timeline,
+                statusBreakdown,
+                funnel,
             };
         },
         enabled: !!jobId && !!user,
-        staleTime: 5 * 60 * 1000, // 5 minutes
+        staleTime: 5 * 60 * 1000,
     });
 
     return {

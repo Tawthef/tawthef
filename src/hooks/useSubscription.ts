@@ -25,8 +25,59 @@ interface Subscription {
     plans: Plan;
 }
 
+export interface SubscriptionCheck {
+    is_valid: boolean;
+    remaining_days: number;
+    remaining_usage: number;
+}
+
 /**
- * Hook to fetch active subscriptions for the current organization
+ * Hook to check a specific subscription plan via server-side RPC.
+ * This is the PRIMARY enforcement hook — uses check_active_subscription RPC.
+ */
+export function useCheckSubscription(planType: string) {
+    const { profile } = useProfile();
+
+    const query = useQuery({
+        queryKey: ['check-subscription', profile?.organization_id, planType],
+        queryFn: async (): Promise<SubscriptionCheck> => {
+            if (!profile?.organization_id) {
+                return { is_valid: false, remaining_days: 0, remaining_usage: 0 };
+            }
+
+            const { data, error } = await supabase
+                .rpc('check_active_subscription', {
+                    p_org_id: profile.organization_id,
+                    p_plan: planType,
+                });
+
+            if (error) {
+                console.error('[useCheckSubscription] RPC Error:', error);
+                return { is_valid: false, remaining_days: 0, remaining_usage: 0 };
+            }
+
+            // RPC returns an array of rows; we want the first
+            const row = Array.isArray(data) ? data[0] : data;
+            return {
+                is_valid: row?.is_valid ?? false,
+                remaining_days: row?.remaining_days ?? 0,
+                remaining_usage: row?.remaining_usage ?? 0,
+            };
+        },
+        enabled: !!profile?.organization_id && !!planType,
+        staleTime: 60 * 1000, // 1 minute
+    });
+
+    return {
+        check: query.data || { is_valid: false, remaining_days: 0, remaining_usage: 0 },
+        isLoading: query.isLoading,
+        error: query.error,
+        refetch: query.refetch,
+    };
+}
+
+/**
+ * Hook to fetch active subscriptions for the current organization (legacy)
  */
 export function useSubscription() {
     const { profile } = useProfile();

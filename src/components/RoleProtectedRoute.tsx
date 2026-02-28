@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
 
 interface RoleProtectedRouteProps {
-    allowedRoles: ('candidate' | 'employer' | 'agency' | 'admin')[];
+    allowedRoles: ('candidate' | 'employer' | 'agency' | 'admin' | 'expert')[];
 }
 
 const RoleProtectedRoute = ({ allowedRoles }: RoleProtectedRouteProps) => {
