@@ -15,6 +15,7 @@ import { useProfileStrength } from "@/hooks/useProfileStrength";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import ProfileStrengthCard from "@/components/ProfileStrengthCard";
+import { Link } from "react-router-dom";
 
 const Profile = () => {
     const {
@@ -145,10 +146,16 @@ const Profile = () => {
                             Complete your profile to improve job matching
                         </p>
                     </div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-wrap items-center gap-3">
                         <Badge className={`text-sm px-4 py-2 ${strengthPercentage >= 80 ? 'bg-success/10 text-success' : strengthPercentage >= 50 ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive'}`}>
                             {strengthPercentage}% Complete
                         </Badge>
+                        <Button asChild variant="outline" className="h-11 px-6 rounded-xl">
+                            <Link to="/dashboard/cv-builder">
+                                <Sparkles className="w-4 h-4 mr-2" />
+                                Open AI CV Builder
+                            </Link>
+                        </Button>
                         <Button
                             onClick={handleSave}
                             disabled={isUpdating || !isDirty}

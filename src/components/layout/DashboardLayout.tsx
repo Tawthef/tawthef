@@ -57,6 +57,7 @@ const DashboardLayout = ({ children, role: propRole, userName: propUserName, com
           { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
           { name: "Browse Jobs", href: "/dashboard/jobs", icon: Briefcase },
           { name: "Applications", href: "/dashboard/applications", icon: FileText },
+          { name: "CV Builder", href: "/dashboard/cv-builder", icon: FileText },
           { name: "Messages", href: "/dashboard/messages", icon: MessageCircle },
           { name: "Profile", href: "/dashboard/profile", icon: User },
           { name: "Notifications", href: "/dashboard/notifications", icon: Bell },

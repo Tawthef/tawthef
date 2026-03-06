@@ -9,40 +9,88 @@ const SYSTEM_PROMPT = `You are a professional CV/Resume parser. Extract structur
 
 Return a valid JSON object with exactly these fields:
 {
+  "name": "Candidate Name",
   "skills": ["skill1", "skill2"],
   "job_titles": ["Previous Job Title 1", "Current Title"],
   "years_experience": 5,
   "education": ["BSc Computer Science, MIT, 2018", "MSc Data Science, Stanford, 2020"],
   "location": "City, Country",
-  "keywords": ["keyword1", "keyword2"]
+  "keywords": ["keyword1", "keyword2"],
+  "experience": [
+    { "company": "Company", "role": "Role", "start_date": "YYYY-MM", "end_date": "YYYY-MM or Present", "description": "One-line description" }
+  ],
+  "projects": [
+    { "name": "Project Name", "description": "One-line impact description", "link": "" }
+  ]
 }
 
 Rules:
+- name: Best full name detected from heading/contact section.
 - skills: Array of technical and soft skills found. Lowercase. Max 30.
 - job_titles: Array of job titles the person has held. Proper case. Max 10.
 - years_experience: Integer. Total years of professional experience. Estimate from dates if not stated.
 - education: Array of education entries in format "Degree, Institution, Year". Max 5.
 - location: Most recent location mentioned. Use "City, Country" format if possible.
 - keywords: Array of domain-specific keywords and industry terms. Lowercase. Max 20.
+- experience: Array of structured entries. Max 6.
+- projects: Array of structured project entries. Max 6.
 - Return ONLY the JSON object. No markdown, no explanation.`;
 
+interface ParsedExperience {
+    company: string;
+    role: string;
+    start_date: string;
+    end_date: string;
+    description: string;
+}
+
+interface ParsedProject {
+    name: string;
+    description: string;
+    link: string;
+}
+
 interface ParsedResume {
+    name: string;
     skills: string[];
     job_titles: string[];
     years_experience: number;
     education: string[];
     location: string;
     keywords: string[];
+    experience: ParsedExperience[];
+    projects: ParsedProject[];
 }
 
 function validateParsedOutput(data: any): ParsedResume {
+    const experience = Array.isArray(data?.experience)
+        ? data.experience.map((item: any) => ({
+            company: String(item?.company || '').trim().slice(0, 120),
+            role: String(item?.role || '').trim().slice(0, 120),
+            start_date: String(item?.start_date || '').trim().slice(0, 20),
+            end_date: String(item?.end_date || '').trim().slice(0, 20),
+            description: String(item?.description || '').trim().slice(0, 500),
+        })).slice(0, 6)
+        : [];
+
+    const projects = Array.isArray(data?.projects)
+        ? data.projects.map((item: any) => ({
+            name: String(item?.name || '').trim().slice(0, 120),
+            description: String(item?.description || '').trim().slice(0, 500),
+            link: String(item?.link || '').trim().slice(0, 300),
+        })).slice(0, 6)
+        : [];
+
     return {
+        name: typeof data?.name === 'string' ? data.name.trim().slice(0, 120) : '',
         skills: Array.isArray(data?.skills) ? data.skills.map((s: any) => String(s).toLowerCase()).slice(0, 30) : [],
         job_titles: Array.isArray(data?.job_titles) ? data.job_titles.map((t: any) => String(t)).slice(0, 10) : [],
         years_experience: typeof data?.years_experience === 'number' ? Math.max(0, Math.round(data.years_experience)) : 0,
         education: Array.isArray(data?.education) ? data.education.map((e: any) => String(e)).slice(0, 5) : [],
         location: typeof data?.location === 'string' ? data.location : '',
         keywords: Array.isArray(data?.keywords) ? data.keywords.map((k: any) => String(k).toLowerCase()).slice(0, 20) : [],
+        experience,
+        projects,
     };
 }
 
@@ -158,6 +206,20 @@ const handler: Handler = async (event: HandlerEvent) => {
 function fallbackParse(text: string): ParsedResume {
     const lower = text.toLowerCase();
 
+    // Name extraction from top lines
+    let name = '';
+    const firstLines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).slice(0, 6);
+    for (const line of firstLines) {
+        if (
+            /^[A-Za-z][A-Za-z\s'.-]{2,60}$/.test(line) &&
+            !line.toLowerCase().includes('resume') &&
+            !line.includes('@')
+        ) {
+            name = line;
+            break;
+        }
+    }
+
     // Skills extraction
     const skillsList = [
         'javascript', 'typescript', 'react', 'angular', 'vue', 'node.js', 'nodejs', 'python',
@@ -215,6 +277,29 @@ function fallbackParse(text: string): ParsedResume {
         }
     }
 
+    // Experience (lightweight fallback from detected titles)
+    const experience: ParsedExperience[] = jobTitles.slice(0, 6).map((title) => ({
+        company: '',
+        role: title,
+        start_date: '',
+        end_date: '',
+        description: '',
+    }));
+
+    // Project extraction
+    const projects: ParsedProject[] = [];
+    const projectMatches = text.match(/(?:project|projects)[:\s-]*([^\n]{8,120})/gi) || [];
+    projectMatches.slice(0, 6).forEach((match) => {
+        const clean = match.replace(/(?:project|projects)[:\s-]*/i, '').trim();
+        if (clean) {
+            projects.push({
+                name: clean.slice(0, 80),
+                description: '',
+                link: '',
+            });
+        }
+    });
+
     // Keywords
     const stopWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been', 'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'shall', 'can', 'need', 'this', 'that', 'these', 'those']);
     const words = lower.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 3 && !stopWords.has(w));
@@ -223,12 +308,15 @@ function fallbackParse(text: string): ParsedResume {
     const keywords = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 20).map(([w]) => w);
 
     return {
+        name,
         skills,
         job_titles: jobTitles,
         years_experience: yearsExp,
         education,
         location,
         keywords,
+        experience,
+        projects,
     };
 }
 
