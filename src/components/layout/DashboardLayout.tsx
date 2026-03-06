@@ -2,11 +2,12 @@ import { ReactNode, useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Briefcase, Users, FileText, Settings, LogOut, ChevronDown, Bell, Search, Building2, User, ClipboardList, BarChart3, UserCheck, Menu, TrendingUp, CreditCard } from "lucide-react";
+import { LayoutDashboard, Briefcase, Users, FileText, Settings, LogOut, ChevronDown, Bell, Search, Building2, User, ClipboardList, BarChart3, UserCheck, Menu, CreditCard, Calendar, MessageCircle, FolderKanban } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import SidebarLogo from "./SidebarLogo";
 import { useProfile } from "@/hooks/useProfile";
 import { useAuth } from "@/context/AuthContext";
+import NotificationBell from "@/components/notifications/NotificationBell";
 
 
 interface DashboardLayoutProps {
@@ -51,22 +52,52 @@ const DashboardLayout = ({ children, role: propRole, userName: propUserName, com
 
   const getNavItems = () => {
     switch (role) {
-      case "candidate": return [{ name: "Dashboard", href: "/dashboard", icon: LayoutDashboard }, { name: "Browse Jobs", href: "/dashboard/jobs", icon: Briefcase }, { name: "My Applications", href: "/dashboard/applications", icon: FileText }, { name: "My Profile", href: "/dashboard/profile", icon: User }, { name: "Settings", href: "/dashboard/settings", icon: Settings }];
-      case "agency": return [
-        { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-        { name: "Job Requests", href: "/dashboard/jobs", icon: Briefcase },
-        { name: "Find Talent", href: "/dashboard/talent-search", icon: Search },
-        { name: "Candidates", href: "/dashboard/candidates", icon: Users },
-        { name: "Submissions", href: "/dashboard/submissions", icon: ClipboardList },
-        { name: "Reports", href: "/dashboard/reports", icon: BarChart3 },
-        { name: "Analytics", href: "/dashboard/analytics", icon: TrendingUp },
-        { name: "Settings", href: "/dashboard/settings", icon: Settings },
-      ];
-
-      case "employer": return [{ name: "Dashboard", href: "/dashboard", icon: LayoutDashboard }, { name: "Find Talent", href: "/dashboard/talent-search", icon: Search }, { name: "Jobs", href: "/dashboard/jobs", icon: Briefcase }, { name: "Candidates", href: "/dashboard/candidates", icon: Users }, { name: "Reports", href: "/dashboard/reports", icon: BarChart3 }, { name: "Pipeline", href: "/dashboard/pipeline", icon: ClipboardList }, { name: "Analytics", href: "/dashboard/analytics", icon: TrendingUp }, { name: "Settings", href: "/dashboard/settings", icon: Settings }];
-      case "expert": return [{ name: "Dashboard", href: "/dashboard", icon: LayoutDashboard }, { name: "Review Queue", href: "/dashboard/reviews", icon: ClipboardList }, { name: "Completed", href: "/dashboard/completed", icon: UserCheck }, { name: "Settings", href: "/dashboard/settings", icon: Settings }];
-      case "admin": return [{ name: "Dashboard", href: "/dashboard", icon: LayoutDashboard }, { name: "Overview", href: "/dashboard/admin/overview", icon: TrendingUp }, { name: "Subscriptions", href: "/dashboard/admin/subscriptions", icon: CreditCard }, { name: "Tenants", href: "/dashboard/tenants", icon: Building2 }, { name: "Users", href: "/dashboard/users", icon: Users }, { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 }, { name: "Activity Logs", href: "/dashboard/logs", icon: FileText }, { name: "Settings", href: "/dashboard/settings", icon: Settings }];
-      default: return [];
+      case "candidate":
+        return [
+          { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+          { name: "Browse Jobs", href: "/dashboard/jobs", icon: Briefcase },
+          { name: "Applications", href: "/dashboard/applications", icon: FileText },
+          { name: "Messages", href: "/dashboard/messages", icon: MessageCircle },
+          { name: "Profile", href: "/dashboard/profile", icon: User },
+          { name: "Notifications", href: "/dashboard/notifications", icon: Bell },
+        ];
+      case "employer":
+        return [
+          { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+          { name: "Jobs", href: "/dashboard/jobs", icon: Briefcase },
+          { name: "Candidates", href: "/dashboard/candidates", icon: Users },
+          { name: "Resume Search", href: "/dashboard/resume-search", icon: Search },
+          { name: "Talent Pools", href: "/dashboard/talent-pools", icon: FolderKanban },
+          { name: "Interviews", href: "/dashboard/interviews", icon: Calendar },
+          { name: "Messages", href: "/dashboard/messages", icon: MessageCircle },
+        ];
+      case "agency":
+        return [
+          { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+          { name: "Client Jobs", href: "/dashboard/jobs", icon: Briefcase },
+          { name: "Candidate Submissions", href: "/dashboard/submissions", icon: ClipboardList },
+          { name: "Resume Search", href: "/dashboard/resume-search", icon: Search },
+          { name: "Talent Pools", href: "/dashboard/talent-pools", icon: FolderKanban },
+          { name: "Messages", href: "/dashboard/messages", icon: MessageCircle },
+        ];
+      case "expert":
+        return [
+          { name: "Review Queue", href: "/dashboard/reviews", icon: ClipboardList },
+          { name: "Completed", href: "/dashboard/completed", icon: UserCheck },
+          { name: "Notifications", href: "/dashboard/notifications", icon: Bell },
+        ];
+      case "admin":
+        return [
+          { name: "Dashboard", href: "/dashboard/admin/overview", icon: LayoutDashboard },
+          { name: "Users", href: "/dashboard/users", icon: Users },
+          { name: "Organizations", href: "/dashboard/tenants", icon: Building2 },
+          { name: "Jobs", href: "/dashboard/jobs", icon: Briefcase },
+          { name: "Subscriptions", href: "/dashboard/admin/subscriptions", icon: CreditCard },
+          { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
+          { name: "Audit Logs", href: "/dashboard/admin/audit", icon: FileText },
+        ];
+      default:
+        return [];
     }
   };
 
@@ -139,9 +170,7 @@ const DashboardLayout = ({ children, role: propRole, userName: propUserName, com
 
           {/* Right side actions */}
           <div className="flex items-center gap-2 sm:gap-4 ml-auto sm:ml-8">
-            <Button variant="ghost" size="icon" className="relative w-10 h-10 lg:w-12 lg:h-12 rounded-xl">
-              <Bell className="w-4 lg:w-5 h-4 lg:h-5" /><span className="absolute top-2 right-2 lg:top-2.5 lg:right-2.5 w-2 h-2 lg:w-2.5 lg:h-2.5 bg-accent rounded-full border-2 border-card" />
-            </Button>
+            <NotificationBell />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-2 lg:gap-3 h-10 lg:h-12 px-2 lg:px-4 rounded-xl">

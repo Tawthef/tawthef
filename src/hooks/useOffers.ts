@@ -103,6 +103,7 @@ export function useOffers(applicationId?: string) {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['offers'] });
+            queryClient.invalidateQueries({ queryKey: ['candidate-timeline'] });
         },
     });
 
@@ -121,6 +122,7 @@ export function useOffers(applicationId?: string) {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['offers'] });
+            queryClient.invalidateQueries({ queryKey: ['candidate-timeline'] });
         },
     });
 
@@ -136,6 +138,7 @@ export function useOffers(applicationId?: string) {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['offers'] });
+            queryClient.invalidateQueries({ queryKey: ['candidate-timeline'] });
         },
     });
 

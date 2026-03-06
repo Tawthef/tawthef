@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
-import { useCandidateProfile } from '@/hooks/useCandidateProfile';
 
 interface CandidateStats {
     applicationsSubmitted: number;
@@ -24,59 +23,56 @@ interface CandidateApplication {
  */
 export function useCandidateStats() {
     const { user } = useAuth();
-    const { profile } = useCandidateProfile();
 
     const query = useQuery({
         queryKey: ['candidate-stats', user?.id],
         queryFn: async (): Promise<CandidateStats> => {
             if (!user) return { applicationsSubmitted: 0, interviewsScheduled: 0, offersReceived: 0, profileCompleteness: 0 };
 
-            // Get applications count
-            const { count: appsCount } = await supabase
-                .from('applications')
-                .select('*', { count: 'exact', head: true })
-                .eq('candidate_id', user.id);
+            const [appsRes, interviewsRes, offersRes, strengthRes] = await Promise.all([
+                supabase
+                    .from('applications')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('candidate_id', user.id),
+                supabase
+                    .from('interviews')
+                    .select('*, applications!inner(*)', { count: 'exact', head: true })
+                    .eq('applications.candidate_id', user.id)
+                    .eq('status', 'scheduled'),
+                supabase
+                    .from('offers')
+                    .select('*, applications!inner(*)', { count: 'exact', head: true })
+                    .eq('applications.candidate_id', user.id)
+                    .eq('status', 'sent'),
+                supabase.rpc('calculate_profile_strength', {
+                    p_candidate_id: user.id,
+                }),
+            ]);
 
-            // Get interviews count
-            const { count: interviewsCount } = await supabase
-                .from('interviews')
-                .select('*, applications!inner(*)', { count: 'exact', head: true })
-                .eq('applications.candidate_id', user.id)
-                .eq('status', 'scheduled');
+            const appsCount = appsRes.count || 0;
+            const interviewsCount = interviewsRes.count || 0;
+            const offersCount = offersRes.count || 0;
 
-            // Get offers count
-            const { count: offersCount } = await supabase
-                .from('offers')
-                .select('*, applications!inner(*)', { count: 'exact', head: true })
-                .eq('applications.candidate_id', user.id)
-                .eq('status', 'sent');
+            if (strengthRes.error) {
+                console.error('[useCandidateStats] Profile strength error:', strengthRes.error);
+            }
+
+            const strengthRow = Array.isArray(strengthRes.data) ? strengthRes.data[0] : strengthRes.data;
+            const profileCompleteness = Number(strengthRow?.percentage || 0);
 
             return {
-                applicationsSubmitted: appsCount || 0,
-                interviewsScheduled: interviewsCount || 0,
-                offersReceived: offersCount || 0,
-                profileCompleteness: 0, // Calculated in component
+                applicationsSubmitted: appsCount,
+                interviewsScheduled: interviewsCount,
+                offersReceived: offersCount,
+                profileCompleteness,
             };
         },
         enabled: !!user,
         staleTime: 60 * 1000,
     });
 
-    // Calculate profile completeness from profile hook
-    const profileCompleteness = profile
-        ? Math.round(
-            ((profile.skills?.length > 0 ? 40 : 0) +
-                (profile.years_experience > 0 ? 30 : 0) +
-                (profile.keywords?.length > 0 ? 20 : 0) +
-                (profile.resume_url ? 10 : 0))
-        )
-        : 0;
-
     return {
-        stats: {
-            ...query.data,
-            profileCompleteness,
-        } as CandidateStats,
+        stats: query.data as CandidateStats,
         isLoading: query.isLoading,
         error: query.error,
     };
@@ -117,6 +113,6 @@ export function useCandidateApplications() {
             }));
         },
         enabled: !!user,
-        staleTime: 30 * 1000,
+        staleTime: 60 * 1000,
     });
 }

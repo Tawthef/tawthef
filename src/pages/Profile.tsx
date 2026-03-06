@@ -11,8 +11,10 @@ import {
 import { useCandidateProfile, extractTextFromFile } from "@/hooks/useCandidateProfile";
 import type { ParseStatus } from "@/hooks/useCandidateProfile";
 import { useProfile } from "@/hooks/useProfile";
+import { useProfileStrength } from "@/hooks/useProfileStrength";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import ProfileStrengthCard from "@/components/ProfileStrengthCard";
 
 const Profile = () => {
     const {
@@ -22,6 +24,7 @@ const Profile = () => {
         parseResume, isParsing
     } = useCandidateProfile();
     const { profile: userProfile } = useProfile();
+    const { data: profileStrength, isLoading: profileStrengthLoading } = useProfileStrength(userProfile?.id);
     const { toast } = useToast();
 
     const [skills, setSkills] = useState<string[]>([]);
@@ -129,16 +132,7 @@ const Profile = () => {
         }
     };
 
-    // Profile completeness
-    const completeness = Math.round(
-        (skills.length > 0 ? 25 : 0) +
-        (yearsExperience > 0 ? 20 : 0) +
-        (keywords.length > 0 ? 10 : 0) +
-        (candidateProfile?.resume_url ? 15 : 0) +
-        (jobTitles.length > 0 ? 10 : 0) +
-        (education.length > 0 ? 10 : 0) +
-        (location ? 10 : 0)
-    );
+    const strengthPercentage = profileStrength?.percentage ?? 0;
 
     return (
         <DashboardLayout>
@@ -152,8 +146,8 @@ const Profile = () => {
                         </p>
                     </div>
                     <div className="flex items-center gap-4">
-                        <Badge className={`text-sm px-4 py-2 ${completeness >= 70 ? 'bg-success/10 text-success' : completeness >= 40 ? 'bg-warning/10 text-warning' : 'bg-muted text-muted-foreground'}`}>
-                            {completeness}% Complete
+                        <Badge className={`text-sm px-4 py-2 ${strengthPercentage >= 80 ? 'bg-success/10 text-success' : strengthPercentage >= 50 ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive'}`}>
+                            {strengthPercentage}% Complete
                         </Badge>
                         <Button
                             onClick={handleSave}
@@ -165,6 +159,13 @@ const Profile = () => {
                         </Button>
                     </div>
                 </div>
+
+                <ProfileStrengthCard
+                    percentage={strengthPercentage}
+                    missingSections={profileStrength?.missingSections || []}
+                    isLoading={profileStrengthLoading}
+                    title="Profile Strength"
+                />
 
                 {/* Loading */}
                 {isLoading && (
@@ -348,39 +349,6 @@ const Profile = () => {
 
                         {/* Sidebar */}
                         <div className="space-y-6">
-                            {/* Profile Strength */}
-                            <Card className="card-float border-0">
-                                <CardHeader>
-                                    <CardTitle className="text-lg">Profile Strength</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div className="relative pt-1">
-                                        <div className="h-3 bg-muted/30 rounded-full overflow-hidden">
-                                            <div
-                                                className={`h-full rounded-full transition-all duration-500 ${completeness >= 70 ? 'bg-success' : completeness >= 40 ? 'bg-warning' : 'bg-destructive/50'}`}
-                                                style={{ width: `${completeness}%` }}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-3 text-sm">
-                                        {[
-                                            { done: skills.length > 0, text: 'Add skills' },
-                                            { done: yearsExperience > 0, text: 'Set experience' },
-                                            { done: !!candidateProfile?.resume_url, text: 'Upload resume' },
-                                            { done: jobTitles.length > 0, text: 'Job titles' },
-                                            { done: education.length > 0, text: 'Education' },
-                                            { done: !!location, text: 'Location' },
-                                            { done: keywords.length > 0, text: 'Keywords' },
-                                        ].map((item, i) => (
-                                            <div key={i} className="flex items-center gap-2">
-                                                <CheckCircle className={`w-4 h-4 ${item.done ? 'text-success' : 'text-muted-foreground/30'}`} />
-                                                <span className={item.done ? 'text-foreground' : 'text-muted-foreground'}>{item.text}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </CardContent>
-                            </Card>
-
                             {/* Resume Upload */}
                             <Card className="card-float border-0">
                                 <CardHeader>

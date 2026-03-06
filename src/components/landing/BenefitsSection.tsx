@@ -55,7 +55,7 @@ const BenefitsSection = () => {
   ];
 
   return (
-    <section className="py-24 lg:py-32 gradient-section relative overflow-hidden">
+    <section className="pt-32 pb-24 lg:pt-40 lg:pb-32 gradient-section relative overflow-hidden">
       {/* Ambient elements */}
       <div className="absolute inset-0 -z-10">
         <div className="absolute top-[30%] right-[5%] w-[350px] h-[350px] rounded-full bg-primary/3 blur-3xl" />
@@ -78,15 +78,15 @@ const BenefitsSection = () => {
             {candidateBenefits.map((benefit) => (
               <div
                 key={benefit.title}
-                className="group card-float p-6 text-center"
+                className="group card-float p-6 text-center h-full flex flex-col hover:-translate-y-1 transition-transform"
               >
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/12 to-primary/4 flex items-center justify-center mb-5 mx-auto group-hover:scale-110 transition-transform duration-500">
-                  <benefit.icon className="w-7 h-7 text-primary" />
+                <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary/12 to-primary/4 flex items-center justify-center mb-5 mx-auto group-hover:scale-110 transition-transform duration-500">
+                  <benefit.icon className="w-8 h-8 text-primary opacity-90 group-hover:opacity-100 transition-all" />
                 </div>
                 <h3 className="text-base font-semibold text-foreground mb-2">
                   {benefit.title}
                 </h3>
-                <p className="text-sm text-muted-foreground leading-relaxed font-normal">
+                <p className="text-sm text-muted-foreground leading-relaxed font-normal mt-auto">
                   {benefit.description}
                 </p>
               </div>
@@ -95,7 +95,7 @@ const BenefitsSection = () => {
 
           <div className="text-center mt-12">
             <Link to="/register">
-              <Button variant="hero" size="lg" className="group text-sm px-8 h-12">
+              <Button variant="hero" size="lg" className="group text-sm px-8 h-12 hover:scale-[1.02] transition-transform">
                 Create Your Profile <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
@@ -131,10 +131,10 @@ const BenefitsSection = () => {
             {recruiterBenefits.map((benefit) => (
               <div
                 key={benefit.title}
-                className="group card-float p-6"
+                className="group card-float p-6 h-full hover:-translate-y-1 transition-transform"
               >
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent/12 to-accent/4 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-500">
-                  <benefit.icon className="w-6 h-6 text-accent" />
+                  <benefit.icon className="w-6 h-6 text-accent opacity-90 group-hover:opacity-100 transition-all" />
                 </div>
                 <h3 className="text-base font-semibold text-foreground mb-2">
                   {benefit.title}
@@ -148,7 +148,7 @@ const BenefitsSection = () => {
 
           <div className="text-center mt-10">
             <Link to="/register">
-              <Button variant="outline" size="lg" className="group text-sm px-8 h-12 border-accent/20 text-foreground hover:border-accent hover:bg-accent/5">
+              <Button variant="outline" size="lg" className="group text-sm px-8 h-12 border-accent/20 text-foreground hover:border-accent hover:bg-accent/5 hover:scale-[1.02] transition-transform">
                 Get Started <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform text-accent" />
               </Button>
             </Link>

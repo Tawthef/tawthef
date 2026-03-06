@@ -25,6 +25,7 @@ import Offers from "./pages/Offers";
 import RankedCandidates from "./pages/RankedCandidates";
 import JobMatchedCandidates from "./pages/JobMatchedCandidates";
 import MyJobMatches from "./pages/MyJobMatches";
+import CVBuilder from "./pages/CVBuilder";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 import RoleProtectedRoute from "./components/RoleProtectedRoute";
@@ -34,12 +35,21 @@ import { CookieConsent } from "./components/privacy/CookieConsent";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import CookiePolicy from "./pages/CookiePolicy";
 import TalentSearch from "./pages/TalentSearch";
+import ResumeSearch from "./pages/ResumeSearch";
 import AdminSubscriptions from "./pages/AdminSubscriptions";
 import AdminOverview from "./pages/AdminOverview";
 import AdminUsers from "./pages/AdminUsers";
 import AdminLogin from "./pages/AdminLogin";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCancel from "./pages/PaymentCancel";
+import NotificationsPage from "./pages/NotificationsPage";
+import MessagesPage from "./pages/MessagesPage";
+import TalentPools from "./pages/TalentPools";
+import CandidateProfilePage from "./pages/CandidateProfilePage";
+import PublicJobs from "./pages/PublicJobs";
+import PublicJobDetails from "./pages/PublicJobDetails";
+import JobPipeline from "./pages/JobPipeline";
+import AdminAuditLogs from "./pages/AdminAuditLogs";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +66,8 @@ const App = () => (
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/register" element={<Register />} />
           <Route path="/pricing" element={<Pricing />} />
+          <Route path="/jobs" element={<PublicJobs />} />
+          <Route path="/jobs/:id" element={<PublicJobDetails />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/cookie-policy" element={<CookiePolicy />} />
           <Route path="/payment/success" element={<PaymentSuccess />} />
@@ -67,10 +79,23 @@ const App = () => (
             <Route path="/account/setup" element={<AccountSetup />} />
 
             {/* Common Routes - Accessible by all roles */}
-            <Route element={<RoleProtectedRoute allowedRoles={['candidate', 'employer', 'agency', 'admin']} />}>
+            <Route element={<RoleProtectedRoute allowedRoles={['candidate', 'employer', 'agency', 'admin', 'expert']} />}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/dashboard/settings" element={<Settings />} />
+            </Route>
+
+            <Route element={<RoleProtectedRoute allowedRoles={['candidate', 'employer', 'agency', 'admin']} />}>
               <Route path="/dashboard/interviews" element={<Interviews />} />
+            </Route>
+
+            {/* Notifications (All roles) */}
+            <Route element={<RoleProtectedRoute allowedRoles={['candidate', 'employer', 'agency', 'admin', 'expert']} />}>
+              <Route path="/dashboard/notifications" element={<NotificationsPage />} />
+            </Route>
+
+            {/* Messaging (Recruiters + Candidates) */}
+            <Route element={<RoleProtectedRoute allowedRoles={['candidate', 'employer', 'agency', 'admin']} />}>
+              <Route path="/dashboard/messages" element={<MessagesPage />} />
             </Route>
 
             {/* Candidate Only Routes */}
@@ -78,10 +103,11 @@ const App = () => (
               <Route path="/dashboard/profile" element={<Profile />} />
               <Route path="/dashboard/applications" element={<Applications />} />
               <Route path="/dashboard/my-matches" element={<MyJobMatches />} />
+              <Route path="/dashboard/cv-builder" element={<CVBuilder />} />
             </Route>
 
             {/* Candidate + Recruiters (Shared but View differs) */}
-            <Route element={<RoleProtectedRoute allowedRoles={['candidate', 'employer', 'agency']} />}>
+            <Route element={<RoleProtectedRoute allowedRoles={['candidate', 'employer', 'agency', 'admin']} />}>
               <Route path="/dashboard/jobs" element={<Jobs />} />
             </Route>
 
@@ -89,7 +115,10 @@ const App = () => (
             <Route element={<RoleProtectedRoute allowedRoles={['employer', 'agency', 'admin']} />}>
               <Route path="/dashboard/reports" element={<Reports />} />
               <Route path="/dashboard/talent-search" element={<TalentSearch />} />
+              <Route path="/dashboard/talent-pools" element={<TalentPools />} />
+              <Route path="/dashboard/resume-search" element={<ResumeSearch />} />
               <Route path="/dashboard/candidates" element={<Candidates />} />
+              <Route path="/dashboard/candidates/:candidateId" element={<CandidateProfilePage />} />
               <Route path="/dashboard/jobs/:jobId/report" element={<JobReport />} />
               <Route path="/dashboard/pipeline" element={<Pipeline />} />
               <Route path="/dashboard/offers" element={<Offers />} />
@@ -109,6 +138,11 @@ const App = () => (
               <Route path="/dashboard/agencies" element={<FeaturePlaceholder title="Agency Network" description="Manage partner agencies and recruiters." />} />
             </Route>
 
+            {/* Employer + Agency: Job Pipeline Kanban */}
+            <Route element={<RoleProtectedRoute allowedRoles={['employer', 'agency']} />}>
+              <Route path="/dashboard/jobs/:id/pipeline" element={<JobPipeline />} />
+            </Route>
+
             {/* Agency + Expert: Technical Reviews */}
             <Route element={<RoleProtectedRoute allowedRoles={['agency', 'expert', 'admin']} />}>
               <Route path="/dashboard/reviews" element={<TechnicalReviews />} />
@@ -120,9 +154,10 @@ const App = () => (
               <Route path="/dashboard/billing" element={<Billing />} />
               <Route path="/dashboard/admin/overview" element={<AdminOverview />} />
               <Route path="/dashboard/admin/subscriptions" element={<AdminSubscriptions />} />
+              <Route path="/dashboard/admin/audit" element={<AdminAuditLogs />} />
               <Route path="/dashboard/tenants" element={<FeaturePlaceholder title="Tenant Management" description="Manage platform organizations and workspaces." />} />
               <Route path="/dashboard/users" element={<AdminUsers />} />
-              <Route path="/dashboard/logs" element={<FeaturePlaceholder title="System Logs" description="View system activity and audit logs." />} />
+              <Route path="/dashboard/logs" element={<AdminAuditLogs />} />
             </Route>
           </Route>
 
@@ -135,4 +170,3 @@ const App = () => (
 );
 
 export default App;
-

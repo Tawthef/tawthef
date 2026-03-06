@@ -26,8 +26,8 @@ const getDaysRemaining = (endDate: string) => {
 
 const Billing = () => {
     const { subscriptions, isLoading } = useSubscription();
-    const { hasAvailableSlots, remainingSlots, totalSlots, expiresAt } = useJobSlots();
-    const { hasResumeAccess, expiresAt: resumeExpiresAt } = useResumeAccess();
+    const { hasAvailableSlots, remainingSlots } = useJobSlots();
+    const { hasResumeAccess } = useResumeAccess();
 
     const jobPostingSubscription = subscriptions.find(sub => sub.plans?.type === 'job_posting');
     const resumeSubscription = subscriptions.find(sub => sub.plans?.type === 'resume_access');
@@ -103,11 +103,15 @@ const Billing = () => {
                                         <div className="flex justify-between text-sm mb-2">
                                             <span className="font-medium text-foreground">Job Slots</span>
                                             <span className="text-muted-foreground">
-                                                {remainingSlots} / {totalSlots} remaining
+                                                {remainingSlots} / {jobPostingSubscription.plans.job_slots} remaining
                                             </span>
                                         </div>
                                         <Progress
-                                            value={(remainingSlots / totalSlots) * 100}
+                                            value={
+                                                jobPostingSubscription.plans.job_slots > 0
+                                                    ? (remainingSlots / jobPostingSubscription.plans.job_slots) * 100
+                                                    : 0
+                                            }
                                             className="h-2"
                                         />
                                     </div>
@@ -153,11 +157,19 @@ const Billing = () => {
                                 <CardContent className="space-y-6">
                                     {/* Access Status */}
                                     <div className="flex items-center gap-3">
-                                        <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center">
-                                            <Lock className="w-6 h-6 text-success" />
-                                        </div>
+                                        {hasResumeAccess ? (
+                                            <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center">
+                                                <Lock className="w-6 h-6 text-success" />
+                                            </div>
+                                        ) : (
+                                            <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center">
+                                                <Lock className="w-6 h-6 text-warning" />
+                                            </div>
+                                        )}
                                         <div>
-                                            <p className="font-medium text-foreground">Full Access</p>
+                                            <p className="font-medium text-foreground">
+                                                {hasResumeAccess ? "Full Access" : "Access Expired"}
+                                            </p>
                                             <p className="text-sm text-muted-foreground">
                                                 Search and view candidate profiles
                                             </p>

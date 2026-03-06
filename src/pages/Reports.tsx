@@ -56,7 +56,7 @@ const Reports = () => {
                     <KPICard label="In Interview" value={kpis.inInterview} icon={Calendar} color="warning" />
                     <KPICard label="Offers Sent" value={kpis.offersSent} icon={Award} color="success" />
                     <KPICard label="Hired" value={kpis.hired} icon={CheckCircle} color="success" />
-                    <KPICard label="Avg Time to Hire" value={`${kpis.avgTimeToHire}d`} icon={Clock} color="muted" />
+                    <KPICard label="Avg Time to Hire" value={kpis.avgTimeToHire} icon={Clock} color="warning" trend="days" />
                 </div>
 
                 {/* Charts Section */}

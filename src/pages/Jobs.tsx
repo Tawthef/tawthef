@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, MoreHorizontal, Building2, Calendar, Briefcase, Loader2, CheckCircle, Send, BarChart3, AlertTriangle } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Building2, Calendar, Briefcase, Loader2, CheckCircle, Send, BarChart3, AlertTriangle, ClipboardList } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useJobs } from "@/hooks/useJobs";
@@ -43,6 +43,7 @@ const Jobs = () => {
   const { toast } = useToast();
 
   const isEmployer = profile?.role === 'employer';
+  const isAgency = profile?.role === 'agency';
   const isCandidate = profile?.role === 'candidate';
 
   const handleApply = async (jobId: string) => {
@@ -245,11 +246,32 @@ const Jobs = () => {
                                 View Report
                               </DropdownMenuItem>
                             </Link>
+                            <Link to={`/dashboard/ai-matches?jobId=${job.id}`}>
+                              <DropdownMenuItem className="py-3.5 px-4 rounded-lg font-medium">
+                                <Briefcase className="w-4 h-4 mr-2" />
+                                AI Matches
+                              </DropdownMenuItem>
+                            </Link>
+                            <Link to={`/dashboard/jobs/${job.id}/pipeline`}>
+                              <DropdownMenuItem className="py-3.5 px-4 rounded-lg font-medium">
+                                <ClipboardList className="w-4 h-4 mr-2" />
+                                Open Pipeline
+                              </DropdownMenuItem>
+                            </Link>
                             <DropdownMenuItem className="py-3.5 px-4 rounded-lg font-medium">View Details</DropdownMenuItem>
                             <DropdownMenuItem className="py-3.5 px-4 rounded-lg font-medium">Edit Position</DropdownMenuItem>
                             <DropdownMenuItem className="text-destructive py-3.5 px-4 rounded-lg font-medium">Close Position</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
+                      )}
+
+                      {isAgency && (
+                        <Button asChild variant="outline" className="h-10 sm:h-12 px-4 sm:px-6 rounded-lg sm:rounded-xl text-sm">
+                          <Link to={`/dashboard/jobs/${job.id}/pipeline`}>
+                            <ClipboardList className="w-4 h-4 mr-2" />
+                            Open Pipeline
+                          </Link>
+                        </Button>
                       )}
 
                       {/* Apply button - Candidates only */}

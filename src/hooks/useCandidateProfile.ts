@@ -108,6 +108,8 @@ export function useCandidateProfile(candidateId?: string) {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['candidate-profile'] });
+            queryClient.invalidateQueries({ queryKey: ['candidate-stats', user?.id] });
+            queryClient.invalidateQueries({ queryKey: ['profile-strength', user?.id] });
         },
     });
 

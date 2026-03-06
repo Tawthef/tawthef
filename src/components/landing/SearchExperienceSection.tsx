@@ -11,10 +11,9 @@ const placeholderExamples = [
 ];
 
 const exampleQueries = [
-  "Senior React Developer",
-  "Product Manager, SaaS",
-  "Data Engineer, remote",
-  "UX Designer, 3+ years",
+  "React Developer",
+  "Product Manager",
+  "UX Designer",
 ];
 
 const searchChips = [
@@ -129,7 +128,7 @@ const SearchExperienceSection = () => {
             <h2 className="text-headline text-foreground mb-4 tracking-tight">
               Search Your Way
             </h2>
-            <p className="text-subhead max-w-xl mx-auto">
+            <p className="text-subhead max-w-xl mx-auto leading-relaxed">
               Describe your ideal candidate naturally. Our AI understands context, not just keywords.
             </p>
           </div>
@@ -138,7 +137,7 @@ const SearchExperienceSection = () => {
           <div className="relative">
             {/* Helper text */}
             <p className="text-center text-sm text-foreground/70 mb-4 font-medium">
-              Try it now — no login required
+              Try searching like a recruiter would.
             </p>
 
             {/* Search card - High Contrast */}
@@ -158,7 +157,7 @@ const SearchExperienceSection = () => {
                 </div>
                 <Button
                   onClick={handleSearch}
-                  className="h-14 sm:h-16 px-6 sm:px-8 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-semibold shadow-lg shadow-primary/25 text-base"
+                  className="h-14 sm:h-16 px-6 sm:px-8 bg-primary hover:bg-primary/90 hover:scale-[1.02] text-primary-foreground rounded-xl font-semibold shadow-lg shadow-primary/25 text-base transition-all"
                 >
                   <span className="hidden sm:inline">Search</span>
                   <Search className="w-5 h-5 sm:ml-2" />
@@ -167,7 +166,7 @@ const SearchExperienceSection = () => {
 
               {/* Example query chips - autofill on click */}
               <div className="flex flex-wrap gap-2.5 mt-5 px-1">
-                <span className="text-xs text-muted-foreground mr-1 self-center font-medium">Try:</span>
+                <span className="text-xs text-muted-foreground mr-1 self-center font-medium">Examples:</span>
                 {exampleQueries.map((query) => (
                   <button
                     key={query}
@@ -237,3 +236,6 @@ const SearchExperienceSection = () => {
 };
 
 export default SearchExperienceSection;
+
+
+

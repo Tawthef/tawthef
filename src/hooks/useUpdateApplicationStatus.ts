@@ -49,6 +49,7 @@ export function useUpdateApplicationStatus() {
             queryClient.invalidateQueries({ queryKey: ['technical-reviews'] });
             queryClient.invalidateQueries({ queryKey: ['job-report'] });
             queryClient.invalidateQueries({ queryKey: ['applications'] });
+            queryClient.invalidateQueries({ queryKey: ['candidate-timeline'] });
         },
         onError: (error: Error) => {
             toast({

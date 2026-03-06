@@ -3,12 +3,17 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useJobReport } from '@/hooks/useJobReport';
 import { useProfile } from '@/hooks/useProfile';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Users, TrendingUp, Calendar, CheckCircle, Award, Briefcase, XCircle, UserCheck, Filter } from 'lucide-react';
+import { Loader2, Users, TrendingUp, Calendar, CheckCircle, Award, Briefcase, XCircle, UserCheck, Filter, Sparkles } from 'lucide-react';
 import KPICard from '@/components/reports/KPICard';
 import StatusBreakdownChart from '@/components/reports/StatusBreakdownChart';
 import HiringFunnelChart from '@/components/reports/HiringFunnelChart';
 import ApplicationTimelineChart from '@/components/reports/ApplicationTimelineChart';
+import { supabase } from '@/lib/supabase';
+import { useToast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 
 const getStatusBadge = (status: 'open' | 'closed' | 'draft') => {
     const config = {
@@ -32,6 +37,9 @@ const JobReport = () => {
     const { jobId } = useParams<{ jobId: string }>();
     const { profile } = useProfile();
     const { data, isLoading, error } = useJobReport(jobId);
+    const { toast } = useToast();
+    const queryClient = useQueryClient();
+    const [isShortlisting, setIsShortlisting] = useState(false);
 
     // Block candidates from accessing this page
     if (profile?.role === 'candidate') {
@@ -60,7 +68,54 @@ const JobReport = () => {
         );
     }
 
-    const { job, progress, statusBreakdown, funnel, timeline } = data;
+    const { job, progress, statusBreakdown, funnel, timeline, aiOverview } = data;
+    const canRunShortlist = profile?.role === 'employer' || profile?.role === 'admin';
+
+    const runRecommendedShortlist = async () => {
+        if (!canRunShortlist || !jobId) return;
+
+        const eligible = aiOverview.recommendedApplications.filter(
+            (item) => item.current_status === 'applied' || item.current_status === 'agency_shortlisted'
+        );
+
+        if (eligible.length === 0) {
+            toast({
+                title: 'No Eligible Candidates',
+                description: 'Candidates above 75% are already shortlisted or in later stages.',
+            });
+            return;
+        }
+
+        setIsShortlisting(true);
+        const results = await Promise.allSettled(
+            eligible.map((item) =>
+                supabase.rpc('update_application_status', {
+                    p_app_id: item.application_id,
+                    p_new_status: 'hr_shortlisted',
+                })
+            )
+        );
+
+        const successCount = results.filter(
+            (result) => result.status === 'fulfilled' && !result.value.error
+        ).length;
+
+        if (successCount > 0) {
+            toast({
+                title: 'Shortlist Updated',
+                description: `${successCount} candidate${successCount !== 1 ? 's' : ''} moved to HR shortlist.`,
+            });
+            queryClient.invalidateQueries({ queryKey: ['job-report'] });
+            queryClient.invalidateQueries({ queryKey: ['employer-applications'] });
+        } else {
+            toast({
+                title: 'Shortlist Update Failed',
+                description: 'Unable to move recommended candidates. Please try again.',
+                variant: 'destructive',
+            });
+        }
+        setIsShortlisting(false);
+    };
 
     return (
         <DashboardLayout>
@@ -143,6 +198,53 @@ const JobReport = () => {
                         color="success"
                     />
                 </div>
+
+                {/* AI Match Overview */}
+                <Card className="card-float border-0">
+                    <CardContent className="p-6 lg:p-8 space-y-6">
+                        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                            <div>
+                                <div className="flex items-center gap-2">
+                                    <Sparkles className="w-5 h-5 text-primary" />
+                                    <h3 className="text-xl font-semibold text-foreground">AI Match Overview</h3>
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                    Live fit quality from the ranking table for this role.
+                                </p>
+                            </div>
+
+                            {canRunShortlist && (
+                                <Button
+                                    onClick={runRecommendedShortlist}
+                                    disabled={isShortlisting || aiOverview.recommendedCount === 0}
+                                    className="shadow-lg shadow-primary/20"
+                                >
+                                    {isShortlisting ? (
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    ) : (
+                                        <Sparkles className="w-4 h-4 mr-2" />
+                                    )}
+                                    Recommended Shortlist ({aiOverview.recommendedCount})
+                                </Button>
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div className="rounded-xl border border-border/40 p-4">
+                                <p className="text-sm text-muted-foreground">Total Candidates</p>
+                                <p className="text-3xl font-bold text-foreground mt-1">{aiOverview.totalCandidates}</p>
+                            </div>
+                            <div className="rounded-xl border border-border/40 p-4">
+                                <p className="text-sm text-muted-foreground">Top 10% Average Score</p>
+                                <p className="text-3xl font-bold text-foreground mt-1">{aiOverview.topTenPercentAverage}%</p>
+                            </div>
+                            <div className="rounded-xl border border-border/40 p-4">
+                                <p className="text-sm text-muted-foreground">Recommended (&gt;75%)</p>
+                                <p className="text-3xl font-bold text-foreground mt-1">{aiOverview.recommendedCount}</p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
 
                 {/* Rejected count inline */}
                 {progress.rejected_count > 0 && (

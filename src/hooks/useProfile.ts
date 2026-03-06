@@ -53,6 +53,8 @@ export function useProfile() {
         if (!error) {
             // Invalidate cache to refetch
             queryClient.invalidateQueries({ queryKey: ['profile', user.id] });
+            queryClient.invalidateQueries({ queryKey: ['profile-strength', user.id] });
+            queryClient.invalidateQueries({ queryKey: ['candidate-stats', user.id] });
         }
 
         return { error };

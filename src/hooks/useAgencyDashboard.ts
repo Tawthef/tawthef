@@ -20,6 +20,13 @@ export interface AgencyRecentSubmission {
     appliedAt: string;
 }
 
+export interface AgencyRecentActivity {
+    id: string;
+    action_type: string;
+    description: string;
+    created_at: string;
+}
+
 export function useAgencyDashboard() {
     const { profile } = useProfile();
     const orgId = profile?.organization_id;
@@ -113,9 +120,34 @@ export function useAgencyDashboard() {
         staleTime: 60 * 1000,
     });
 
+    const activityQuery = useQuery({
+        queryKey: ['agency-recent-activity', orgId],
+        queryFn: async (): Promise<AgencyRecentActivity[]> => {
+            if (!orgId) return [];
+
+            const { data, error } = await supabase
+                .from('activity_logs')
+                .select('id, action_type, description, created_at')
+                .eq('organization_id', orgId)
+                .order('created_at', { ascending: false })
+                .limit(10);
+
+            if (error) {
+                console.error('[useAgencyDashboard] Activity error:', error);
+                return [];
+            }
+
+            return (data || []) as AgencyRecentActivity[];
+        },
+        enabled: !!orgId,
+        staleTime: 60 * 1000,
+    });
+
     return {
         stats: statsQuery.data,
         isLoading: statsQuery.isLoading,
         recentSubmissions: recentQuery.data || [],
+        activity: activityQuery.data || [],
+        isActivityLoading: activityQuery.isLoading,
     };
 }

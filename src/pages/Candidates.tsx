@@ -9,6 +9,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { useUpdateApplicationStatus, getAllowedTransitions } from "@/hooks/useUpdateApplicationStatus";
 import StatusProgressBar from "@/components/StatusProgressBar";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   "applied": { label: "New", className: "bg-primary/10 text-primary" },
@@ -33,6 +34,7 @@ const Candidates = () => {
   const { applications, isLoading } = useEmployerApplications();
   const { profile } = useProfile();
   const { updateStatus, isUpdating } = useUpdateApplicationStatus();
+  const navigate = useNavigate();
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const role = profile?.role || '';
@@ -125,36 +127,41 @@ const Candidates = () => {
                         </div>
 
                         {/* Context-aware action buttons */}
-                        {transitions.length > 0 && (
-                          <div className="flex items-center gap-3 flex-wrap">
-                            {transitions.map((t) => (
-                              <Button
-                                key={t.status}
-                                variant={t.variant === 'destructive' ? 'outline' : 'default'}
-                                className={
-                                  t.variant === 'destructive'
-                                    ? "h-11 px-5 rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10"
-                                    : "h-11 px-5 rounded-xl shadow-lg shadow-primary/20"
-                                }
-                                onClick={() => handleAction(app.id, t.status)}
-                                disabled={isThisUpdating}
-                              >
-                                {isThisUpdating ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <>
-                                    {t.variant === 'destructive' ? (
-                                      <XCircle className="w-4 h-4 mr-2" />
-                                    ) : (
-                                      <CheckCircle className="w-4 h-4 mr-2" />
-                                    )}
-                                    {t.label}
-                                  </>
-                                )}
-                              </Button>
-                            ))}
-                          </div>
-                        )}
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <Button
+                            variant="outline"
+                            className="h-11 px-5 rounded-xl"
+                            onClick={() => navigate(`/dashboard/candidates/${app.candidate_id}?applicationId=${app.id}`)}
+                          >
+                            View Profile
+                          </Button>
+                          {transitions.map((t) => (
+                            <Button
+                              key={t.status}
+                              variant={t.variant === 'destructive' ? 'outline' : 'default'}
+                              className={
+                                t.variant === 'destructive'
+                                  ? "h-11 px-5 rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10"
+                                  : "h-11 px-5 rounded-xl shadow-lg shadow-primary/20"
+                              }
+                              onClick={() => handleAction(app.id, t.status)}
+                              disabled={isThisUpdating}
+                            >
+                              {isThisUpdating ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <>
+                                  {t.variant === 'destructive' ? (
+                                    <XCircle className="w-4 h-4 mr-2" />
+                                  ) : (
+                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                  )}
+                                  {t.label}
+                                </>
+                              )}
+                            </Button>
+                          ))}
+                        </div>
                       </div>
 
                       {/* Status Progress Bar */}

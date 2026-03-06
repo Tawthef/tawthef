@@ -1,528 +1,650 @@
+import ActivityTimeline, { ActivityTimelineItem } from "@/components/ActivityTimeline";
+import DashboardStatCard, { DashboardStatCardSkeleton } from "@/components/dashboard/DashboardStatCard";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { useAgencyDashboard } from "@/hooks/useAgencyDashboard";
+import { useCandidateApplications, useCandidateStats } from "@/hooks/useCandidateDashboard";
+import { useEmployerDashboard } from "@/hooks/useEmployerDashboard";
+import { useProfile } from "@/hooks/useProfile";
+import { useProfileStrength } from "@/hooks/useProfileStrength";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Briefcase, Users, TrendingUp, Clock, ArrowRight, Plus, FileText,
-  Video, Gift, User, Loader2, CheckCircle, UserCheck, BarChart3,
-  Building2, CreditCard, AlertCircle, XCircle
+  AlertCircle,
+  ArrowRight,
+  Briefcase,
+  CheckCircle,
+  FileText,
+  Gift,
+  Loader2,
+  LucideIcon,
+  Search,
+  Upload,
+  User,
+  UserCheck,
+  Users,
+  Video,
 } from "lucide-react";
-import { useProfile } from "@/hooks/useProfile";
-import { useCandidateStats, useCandidateApplications } from "@/hooks/useCandidateDashboard";
-import { useEmployerDashboard } from "@/hooks/useEmployerDashboard";
-import { useAgencyDashboard } from "@/hooks/useAgencyDashboard";
-import { Link, useNavigate } from "react-router-dom";
+import { Navigate, Link } from "react-router-dom";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
-// ─── Status Badge ────────────────────────────────────────────────
-const getStatusBadge = (status: string) => {
-  const config: Record<string, { label: string; className: string }> = {
-    applied: { label: "Applied", className: "bg-muted text-muted-foreground" },
-    agency_shortlisted: { label: "Shortlisted", className: "bg-primary/10 text-primary" },
-    hr_shortlisted: { label: "HR Review", className: "bg-blue-500/10 text-blue-400" },
-    technical_shortlisted: { label: "Tech Review", className: "bg-cyan-500/10 text-cyan-400" },
-    interview: { label: "Interview", className: "bg-accent/10 text-accent" },
-    offer: { label: "Offer", className: "bg-warning/10 text-warning" },
-    hired: { label: "Hired", className: "bg-success/10 text-success" },
-    rejected: { label: "Rejected", className: "bg-destructive/10 text-destructive" },
-  };
-  const c = config[status] || { label: status, className: "bg-muted text-muted-foreground" };
-  return <Badge className={c.className + " border-0 text-xs"}>{c.label}</Badge>;
+const CHART_COLORS = [
+  "hsl(var(--primary))",
+  "hsl(var(--accent))",
+  "hsl(var(--warning))",
+  "hsl(var(--success))",
+  "hsl(var(--destructive))",
+];
+
+const STATUS_LABELS: Record<string, string> = {
+  applied: "Applied",
+  agency_shortlisted: "Shortlisted",
+  hr_shortlisted: "HR Review",
+  technical_shortlisted: "Tech Review",
+  interview: "Interview",
+  offer: "Offer",
+  offer_sent: "Offer",
+  offered: "Offer",
+  hired: "Hired",
+  rejected: "Rejected",
 };
 
-const formatDate = (date: string) =>
-  new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+const STATUS_STYLES: Record<string, string> = {
+  applied: "bg-muted text-muted-foreground",
+  agency_shortlisted: "bg-primary/10 text-primary",
+  hr_shortlisted: "bg-primary/10 text-primary",
+  technical_shortlisted: "bg-primary/10 text-primary",
+  interview: "bg-warning/10 text-warning",
+  offer: "bg-success/10 text-success",
+  offer_sent: "bg-success/10 text-success",
+  offered: "bg-success/10 text-success",
+  hired: "bg-success/15 text-success",
+  rejected: "bg-destructive/10 text-destructive",
+};
 
-// ─── KPI Card ────────────────────────────────────────────────────
-interface KpiCardProps {
+const formatDate = (value: string) =>
+  new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+const getStatusBadge = (status: string) => {
+  const label = STATUS_LABELS[status] || status;
+  const style = STATUS_STYLES[status] || "bg-muted text-muted-foreground";
+  return <Badge className={`${style} border-0 text-xs`}>{label}</Badge>;
+};
+
+interface QuickAction {
   label: string;
-  value: string | number;
-  icon: React.ElementType;
-  color: string;
-  trend?: string;
+  href: string;
+  icon: LucideIcon;
 }
-const KpiCard = ({ label, value, icon: Icon, color, trend }: KpiCardProps) => (
+
+const QuickActionsCard = ({ title, actions }: { title: string; actions: QuickAction[] }) => (
   <Card className="card-dashboard">
-    <CardContent className="p-4 sm:p-6 pt-6">
-      <div className="flex items-start justify-between">
-        <div className="space-y-3">
-          <p className="text-sm font-medium text-muted-foreground">{label}</p>
-          <p className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground tracking-tight">{value}</p>
-          {trend && <p className="text-xs text-muted-foreground">{trend}</p>}
-        </div>
-        <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-${color}/10 flex items-center justify-center shrink-0`}>
-          <Icon className={`w-6 h-6 sm:w-7 sm:h-7 text-${color}`} />
-        </div>
-      </div>
+    <CardHeader className="pb-4">
+      <CardTitle className="text-base font-semibold">{title}</CardTitle>
+    </CardHeader>
+    <CardContent className="space-y-2">
+      {actions.map((action) => (
+        <Link key={action.label} to={action.href}>
+          <div className="flex items-center gap-3 rounded-xl border border-border/20 px-3 py-3 hover:bg-muted/20 transition-colors">
+            <action.icon className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium">{action.label}</span>
+            <ArrowRight className="w-3.5 h-3.5 ml-auto text-muted-foreground" />
+          </div>
+        </Link>
+      ))}
     </CardContent>
   </Card>
 );
 
-const KpiSkeleton = () => (
+const DashboardSectionSkeleton = () => (
   <Card className="card-dashboard">
-    <CardContent className="p-4 sm:p-6 pt-6">
-      <div className="flex items-start justify-between">
-        <div className="space-y-3 flex-1">
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-10 w-16" />
-        </div>
-        <Skeleton className="w-12 h-12 rounded-2xl" />
-      </div>
+    <CardHeader className="pb-4">
+      <Skeleton className="h-5 w-40" />
+    </CardHeader>
+    <CardContent className="space-y-3">
+      <Skeleton className="h-64 w-full" />
+      <Skeleton className="h-4 w-2/3" />
     </CardContent>
   </Card>
 );
 
-// ─── CANDIDATE DASHBOARD ─────────────────────────────────────────
 const CandidateDashboard = () => {
-  const { stats, isLoading: statsLoading } = useCandidateStats();
-  const { data: applications, isLoading: appsLoading } = useCandidateApplications();
   const { profile } = useProfile();
+  const { stats, isLoading: isStatsLoading } = useCandidateStats();
+  const { data: applications = [], isLoading: isAppsLoading } = useCandidateApplications();
+  const { data: profileStrength, isLoading: isStrengthLoading } = useProfileStrength(profile?.id);
 
-  const statCards: KpiCardProps[] = [
-    { label: "Applications", value: stats?.applicationsSubmitted ?? 0, icon: FileText, color: "primary" },
-    { label: "Interviews", value: stats?.interviewsScheduled ?? 0, icon: Video, color: "accent" },
-    { label: "Offers", value: stats?.offersReceived ?? 0, icon: Gift, color: "success" },
+  const profilePercentage = profileStrength?.percentage ?? stats?.profileCompleteness ?? 0;
+  const missingSectionsCount = profileStrength?.missingSections?.length || 0;
+
+  const candidateChartData = [
     {
-      label: "Profile",
-      value: `${stats?.profileCompleteness ?? 0}%`,
+      name: "Applied",
+      value: applications.filter((app) => app.status === "applied").length,
+    },
+    {
+      name: "Shortlisted",
+      value: applications.filter((app) =>
+        ["agency_shortlisted", "hr_shortlisted", "technical_shortlisted"].includes(app.status),
+      ).length,
+    },
+    {
+      name: "Interview",
+      value: applications.filter((app) => app.status === "interview").length,
+    },
+    {
+      name: "Offer",
+      value: applications.filter((app) => ["offer", "offer_sent", "offered"].includes(app.status)).length,
+    },
+    {
+      name: "Rejected",
+      value: applications.filter((app) => app.status === "rejected").length,
+    },
+  ].filter((entry) => entry.value > 0);
+
+  const candidateActivities: ActivityTimelineItem[] = applications.slice(0, 10).map((application) => ({
+    id: application.id,
+    action_type: "application",
+    description: `Applied for ${application.job_title}`,
+    created_at: application.applied_at,
+  }));
+
+  const cards = [
+    {
+      title: "Applications submitted",
+      value: stats?.applicationsSubmitted ?? 0,
+      icon: FileText,
+      trendText: "Total submitted",
+      trendTone: "neutral" as const,
+    },
+    {
+      title: "Interviews scheduled",
+      value: stats?.interviewsScheduled ?? 0,
+      icon: Video,
+      trendText: "Upcoming interviews",
+      trendTone: "neutral" as const,
+    },
+    {
+      title: "Offers received",
+      value: stats?.offersReceived ?? 0,
+      icon: Gift,
+      trendText: "Offer stage progress",
+      trendTone: "up" as const,
+    },
+    {
+      title: "Profile strength",
+      value: `${profilePercentage}%`,
       icon: User,
-      color: (stats?.profileCompleteness ?? 0) >= 70 ? "success" : "warning",
+      trendText: missingSectionsCount > 0 ? `${missingSectionsCount} sections missing` : "Profile is complete",
+      trendTone: missingSectionsCount > 0 ? ("down" as const) : ("up" as const),
     },
   ];
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 sm:space-y-8 lg:space-y-10">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground tracking-tight">Dashboard</h1>
-            <p className="text-muted-foreground mt-1 text-base sm:text-lg font-light">
-              Welcome back, {profile?.full_name?.split(" ")[0] || "there"}!
-            </p>
-          </div>
-          <Link to="/dashboard/jobs">
-            <Button className="w-full sm:w-fit shadow-lg shadow-primary/20 h-11 sm:h-12 px-6 sm:px-8">
-              <Briefcase className="w-4 h-4 mr-2" /> Browse Jobs
-            </Button>
-          </Link>
-        </div>
+      <div className="space-y-8">
+        <section className="space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight">Candidate Dashboard</h1>
+          <p className="text-muted-foreground">
+            Track your applications, profile strength, and interview progress.
+          </p>
+        </section>
 
-        {/* KPI */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-          {statsLoading
-            ? Array.from({ length: 4 }).map((_, i) => <KpiSkeleton key={i} />)
-            : statCards.map(s => <KpiCard key={s.label} {...s} />)}
-        </div>
+        <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          {isStatsLoading || isStrengthLoading
+            ? Array.from({ length: 4 }).map((_, index) => <DashboardStatCardSkeleton key={index} />)
+            : cards.map((card) => <DashboardStatCard key={card.title} {...card} />)}
+        </section>
 
-        {/* Lower panel */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
-          {/* Recent Applications */}
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {isAppsLoading ? (
+            <div className="lg:col-span-2">
+              <DashboardSectionSkeleton />
+            </div>
+          ) : (
+            <Card className="card-dashboard lg:col-span-2">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg font-semibold">Application Status Breakdown</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {applications.length === 0 ? (
+                  <div className="py-10 text-center">
+                    <FileText className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+                    <p className="text-sm font-medium">No applications yet.</p>
+                    <Link to="/dashboard/jobs" className="inline-block mt-3">
+                      <Button size="sm">Browse Jobs</Button>
+                    </Link>
+                  </div>
+                ) : candidateChartData.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-8 text-center">Status distribution will appear once applications move through stages.</p>
+                ) : (
+                  <>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={candidateChartData}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={95}
+                            paddingAngle={2}
+                          >
+                            {candidateChartData.map((entry, index) => (
+                              <Cell key={entry.name} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(value: number) => [value, "Applications"]} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 mt-3">
+                      {candidateChartData.map((entry, index) => (
+                        <div key={entry.name} className="rounded-lg bg-muted/20 px-2 py-2 text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className="inline-block w-2.5 h-2.5 rounded-full"
+                              style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
+                            />
+                            <span className="text-muted-foreground">{entry.name}</span>
+                          </div>
+                          <p className="font-semibold mt-1">{entry.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          <QuickActionsCard
+            title="Quick Actions"
+            actions={[
+              { label: "Browse Jobs", href: "/dashboard/jobs", icon: Briefcase },
+              { label: "Update Profile", href: "/dashboard/profile", icon: User },
+              { label: "Upload CV", href: "/dashboard/cv-builder", icon: Upload },
+            ]}
+          />
+        </section>
+
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card className="card-dashboard">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6">
-              <CardTitle className="text-lg sm:text-xl font-semibold">Recent Applications</CardTitle>
-              <Link to="/dashboard/applications">
-                <Button variant="ghost" size="sm" className="text-primary font-medium text-xs">
-                  View all <ArrowRight className="w-3 h-3 ml-1" />
-                </Button>
-              </Link>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-semibold">Recent Applications</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {appsLoading ? (
-                Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-muted/10">
-                    <Skeleton className="w-10 h-10 rounded-xl" />
-                    <div className="flex-1 space-y-2"><Skeleton className="h-4 w-3/4" /><Skeleton className="h-3 w-1/2" /></div>
-                    <Skeleton className="h-5 w-16 rounded-full" />
+              {isAppsLoading ? (
+                Array.from({ length: 4 }).map((_, index) => (
+                  <div key={index} className="flex items-center gap-3 rounded-xl bg-muted/10 p-3">
+                    <Skeleton className="w-9 h-9 rounded-xl" />
+                    <div className="space-y-2 flex-1">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-3 w-1/2" />
+                    </div>
                   </div>
                 ))
-              ) : applications && applications.length > 0 ? (
-                applications.slice(0, 5).map(app => (
-                  <div key={app.id} className="flex items-center justify-between p-4 rounded-xl bg-muted/20 border border-border/20 hover:bg-muted/30 transition-colors">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center shrink-0">
-                        <Briefcase className="w-5 h-5 text-primary" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-medium text-foreground text-sm truncate">{app.job_title}</p>
-                        <p className="text-xs text-muted-foreground truncate">{app.company_name}</p>
-                      </div>
+              ) : applications.length > 0 ? (
+                applications.slice(0, 5).map((application) => (
+                  <div
+                    key={application.id}
+                    className="flex items-center justify-between rounded-xl border border-border/20 p-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{application.job_title}</p>
+                      <p className="text-xs text-muted-foreground truncate">{application.company_name}</p>
                     </div>
-                    <div className="text-right shrink-0 ml-2">
-                      {getStatusBadge(app.status)}
-                      <p className="text-xs text-muted-foreground mt-1">{formatDate(app.applied_at)}</p>
+                    <div className="text-right ml-3">
+                      {getStatusBadge(application.status)}
+                      <p className="text-xs text-muted-foreground mt-1">{formatDate(application.applied_at)}</p>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="text-center py-10 text-muted-foreground">
-                  <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                  <p className="text-sm font-medium">No applications yet</p>
-                  <p className="text-xs mt-1">Start by browsing available jobs</p>
-                  <Link to="/dashboard/jobs">
-                    <Button variant="link" className="mt-2 text-sm">Browse jobs →</Button>
+                <div className="py-10 text-center">
+                  <FileText className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+                  <p className="text-sm font-medium">No applications yet.</p>
+                  <Link to="/dashboard/jobs" className="inline-block mt-3">
+                    <Button size="sm">Browse Jobs</Button>
                   </Link>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Profile Strength */}
-          <Card className="card-dashboard">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6">
-              <CardTitle className="text-lg sm:text-xl font-semibold">Profile Strength</CardTitle>
-              <Link to="/dashboard/profile">
-                <Button variant="ghost" size="sm" className="text-primary font-medium text-xs">
-                  Edit <ArrowRight className="w-3 h-3 ml-1" />
-                </Button>
-              </Link>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Completion</span>
-                  <span className="font-semibold">{stats?.profileCompleteness ?? 0}%</span>
-                </div>
-                <div className="h-3 bg-muted/30 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-700 ${(stats?.profileCompleteness ?? 0) >= 70 ? "bg-success" :
-                        (stats?.profileCompleteness ?? 0) >= 40 ? "bg-warning" : "bg-destructive/50"
-                      }`}
-                    style={{ width: `${stats?.profileCompleteness ?? 0}%` }}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                {[
-                  { label: "Add skills", done: (stats?.profileCompleteness ?? 0) > 0 },
-                  { label: "Set experience", done: (stats?.profileCompleteness ?? 0) >= 30 },
-                  { label: "Upload resume", done: (stats?.profileCompleteness ?? 0) >= 70 },
-                  { label: "Add keywords", done: (stats?.profileCompleteness ?? 0) >= 50 },
-                ].map(item => (
-                  <div key={item.label} className="flex items-center gap-2 text-sm">
-                    <CheckCircle className={`w-4 h-4 ${item.done ? "text-success" : "text-muted-foreground/30"}`} />
-                    <span className={item.done ? "text-foreground" : "text-muted-foreground"}>{item.label}</span>
-                  </div>
-                ))}
-              </div>
-              <Link to="/dashboard/profile">
-                <Button variant="outline" className="w-full rounded-xl" size="sm">
-                  Complete My Profile
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        </div>
+          <ActivityTimeline
+            title="Recent Activity"
+            activities={candidateActivities}
+            isLoading={isAppsLoading}
+            emptyMessage="No activity yet."
+          />
+        </section>
       </div>
     </DashboardLayout>
   );
 };
 
-// ─── EMPLOYER DASHBOARD ──────────────────────────────────────────
 const EmployerDashboard = () => {
-  const { profile } = useProfile();
-  const { stats, isLoading, activity, isActivityLoading } = useEmployerDashboard();
-  const navigate = useNavigate();
+  const { stats, isLoading, activity, isActivityLoading, topAiMatches, isTopAiMatchesLoading } = useEmployerDashboard();
 
-  const statCards: KpiCardProps[] = [
-    { label: "Active Jobs", value: stats?.activeJobs ?? 0, icon: Briefcase, color: "primary" },
-    { label: "Total Applicants", value: stats?.totalApplicants ?? 0, icon: Users, color: "primary" },
-    { label: "Shortlisted", value: stats?.shortlisted ?? 0, icon: UserCheck, color: "accent" },
-    { label: "In Interview", value: stats?.inInterview ?? 0, icon: Video, color: "success" },
-    { label: "Hired", value: stats?.hired ?? 0, icon: CheckCircle, color: "success" },
-    { label: "Rejected", value: stats?.rejected ?? 0, icon: XCircle, color: "destructive" },
+  const cards = [
+    {
+      title: "Active jobs",
+      value: stats?.activeJobs ?? 0,
+      icon: Briefcase,
+      trendText: "Open requisitions",
+      trendTone: "neutral" as const,
+    },
+    {
+      title: "Total applicants",
+      value: stats?.totalApplicants ?? 0,
+      icon: Users,
+      trendText: "Across all jobs",
+      trendTone: "neutral" as const,
+    },
+    {
+      title: "Shortlisted candidates",
+      value: stats?.shortlisted ?? 0,
+      icon: UserCheck,
+      trendText: "Ready for next step",
+      trendTone: "up" as const,
+    },
+    {
+      title: "Interviews scheduled",
+      value: stats?.inInterview ?? 0,
+      icon: Video,
+      trendText: "In active process",
+      trendTone: "neutral" as const,
+    },
+    {
+      title: "Offers sent",
+      value: stats?.offersSent ?? 0,
+      icon: CheckCircle,
+      trendText: "Offer stage",
+      trendTone: "up" as const,
+    },
   ];
 
-  const planLabel: Record<string, string> = {
-    job_slot_basic: "Basic Plan",
-    job_slot_pro: "Pro Plan",
-  };
+  const pipelineData = [
+    { name: "Applicants", value: stats?.totalApplicants ?? 0 },
+    { name: "Shortlisted", value: stats?.shortlisted ?? 0 },
+    { name: "Interview", value: stats?.inInterview ?? 0 },
+    { name: "Offer", value: stats?.offersSent ?? 0 },
+    { name: "Hired", value: stats?.hired ?? 0 },
+  ];
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 sm:space-y-8 lg:space-y-10">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">Dashboard</h1>
-            <p className="text-muted-foreground mt-1 text-base sm:text-lg font-light">
-              Welcome back, {profile?.full_name?.split(" ")[0] || "there"}!
-            </p>
-          </div>
-          <Link to="/dashboard/jobs">
-            <Button className="w-full sm:w-fit shadow-lg shadow-primary/20 h-11 sm:h-12 px-6 sm:px-8">
-              <Plus className="w-4 h-4 mr-2" /> Post New Job
-            </Button>
-          </Link>
-        </div>
+      <div className="space-y-8">
+        <section className="space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight">Employer Dashboard</h1>
+          <p className="text-muted-foreground">
+            Monitor hiring pipeline performance and take action from one place.
+          </p>
+        </section>
 
-        {/* Subscription status banner */}
-        {!isLoading && (
-          <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-xl border ${stats?.subscriptionActive
-              ? "bg-success/5 border-success/20"
-              : "bg-warning/5 border-warning/20"
-            }`}>
-            <div className="flex items-center gap-3">
-              <CreditCard className={`w-5 h-5 ${stats?.subscriptionActive ? "text-success" : "text-warning"}`} />
-              <div>
-                <p className="text-sm font-medium">
-                  {stats?.subscriptionActive
-                    ? `${planLabel[stats.subscriptionPlan!] || stats.subscriptionPlan} — ${stats.jobSlotsUsed}/${stats.jobSlotsLimit} slots used`
-                    : "No active subscription"}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {stats?.subscriptionActive ? "Your plan is active" : "Subscribe to post jobs and access candidates"}
-                </p>
-              </div>
-            </div>
-            {!stats?.subscriptionActive && (
-              <Button size="sm" className="w-fit" onClick={() => navigate("/pricing")}>
-                View Plans
-              </Button>
-            )}
-          </div>
-        )}
-
-        {/* KPI grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
           {isLoading
-            ? Array.from({ length: 6 }).map((_, i) => <KpiSkeleton key={i} />)
-            : statCards.map(s => <KpiCard key={s.label} {...s} />)}
-        </div>
+            ? Array.from({ length: 5 }).map((_, index) => <DashboardStatCardSkeleton key={index} />)
+            : cards.map((card) => <DashboardStatCard key={card.title} {...card} />)}
+        </section>
 
-        {/* Activity + Quick Links */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-          {/* Recent Activity */}
-          <Card className="lg:col-span-2 card-dashboard">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6">
-              <CardTitle className="text-lg font-semibold">Recent Applications</CardTitle>
-              <Link to="/dashboard/candidates">
-                <Button variant="ghost" size="sm" className="text-primary text-xs">
-                  View all <ArrowRight className="w-3 h-3 ml-1" />
-                </Button>
-              </Link>
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {isLoading ? (
+            <div className="lg:col-span-2">
+              <DashboardSectionSkeleton />
+            </div>
+          ) : (
+            <Card className="card-dashboard lg:col-span-2">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg font-semibold">Hiring Pipeline</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {(stats?.activeJobs ?? 0) === 0 ? (
+                  <div className="py-10 text-center">
+                    <Briefcase className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+                    <p className="text-sm font-medium">No active job postings.</p>
+                    <Link to="/dashboard/jobs" className="inline-block mt-3">
+                      <Button size="sm">Create Job</Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={pipelineData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
+                        <XAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
+                        <YAxis allowDecimals={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
+                        <Tooltip formatter={(value: number) => [value, "Candidates"]} />
+                        <Bar dataKey="value" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          <QuickActionsCard
+            title="Quick Actions"
+            actions={[
+              { label: "Create Job", href: "/dashboard/jobs", icon: Briefcase },
+              { label: "Search CVs", href: "/dashboard/resume-search", icon: Search },
+              { label: "View Talent Pools", href: "/dashboard/talent-pools", icon: Users },
+            ]}
+          />
+        </section>
+
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ActivityTimeline
+            title="Recent Hiring Activity"
+            activities={activity}
+            isLoading={isActivityLoading}
+            emptyMessage="No hiring activity yet."
+          />
+
+          <Card className="card-dashboard">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-semibold">Top AI Matches</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {isActivityLoading ? (
-                Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-muted/10">
-                    <Skeleton className="w-9 h-9 rounded-xl" />
-                    <div className="flex-1 space-y-2"><Skeleton className="h-4 w-3/4" /><Skeleton className="h-3 w-1/2" /></div>
+              {isTopAiMatchesLoading ? (
+                Array.from({ length: 5 }).map((_, index) => (
+                  <div key={index} className="rounded-xl bg-muted/10 p-3">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-1/2 mt-2" />
                   </div>
                 ))
-              ) : activity.length > 0 ? (
-                activity.map(item => (
-                  <div key={item.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/10 hover:bg-muted/20 transition-colors">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                        <Users className="w-4 h-4 text-primary" />
-                      </div>
+              ) : topAiMatches.length > 0 ? (
+                topAiMatches.map((match) => (
+                  <div key={`${match.jobId}-${match.candidateId}`} className="rounded-xl border border-border/20 p-3">
+                    <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{item.title}</p>
-                        <p className="text-xs text-muted-foreground truncate">{item.subtitle}</p>
+                        <p className="text-sm font-medium truncate">{match.candidateName}</p>
+                        <p className="text-xs text-muted-foreground truncate">{match.jobTitle}</p>
                       </div>
+                      <Badge className="bg-primary/10 text-primary border-0">{match.score}%</Badge>
                     </div>
-                    <div className="shrink-0 ml-2 text-right">
-                      {getStatusBadge(item.status || "applied")}
-                      <p className="text-xs text-muted-foreground mt-1">{formatDate(item.date)}</p>
-                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">Updated {formatDate(match.updatedAt)}</p>
                   </div>
                 ))
               ) : (
-                <div className="text-center py-10 text-muted-foreground">
-                  <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                  <p className="text-sm font-medium">No applications yet</p>
-                  <p className="text-xs mt-1">Post a job to start receiving applications</p>
+                <div className="py-10 text-center">
+                  <UserCheck className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+                  <p className="text-sm font-medium">No AI matches yet.</p>
                 </div>
               )}
             </CardContent>
           </Card>
-
-          {/* Quick Actions */}
-          <Card className="card-dashboard">
-            <CardHeader className="pb-6">
-              <CardTitle className="text-lg font-semibold">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {[
-                { label: "Post New Job", href: "/dashboard/jobs", icon: Plus },
-                { label: "Search Talent", href: "/dashboard/talent-search", icon: Users },
-                { label: "View Pipeline", href: "/dashboard/pipeline", icon: TrendingUp },
-                { label: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
-                { label: "Manage Subscription", href: "/pricing", icon: CreditCard },
-              ].map(action => (
-                <Link key={action.label} to={action.href} className="block">
-                  <div className="flex items-center gap-3 p-3 rounded-xl border border-border/20 hover:bg-muted/20 hover:border-border/40 transition-all cursor-pointer">
-                    <action.icon className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-medium">{action.label}</span>
-                    <ArrowRight className="w-3.5 h-3.5 text-muted-foreground ml-auto" />
-                  </div>
-                </Link>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
+        </section>
       </div>
     </DashboardLayout>
   );
 };
 
-// ─── AGENCY DASHBOARD ────────────────────────────────────────────
 const AgencyDashboard = () => {
-  const { profile } = useProfile();
-  const { stats, isLoading, recentSubmissions } = useAgencyDashboard();
+  const { stats, isLoading, recentSubmissions, activity, isActivityLoading } = useAgencyDashboard();
 
-  const statCards: KpiCardProps[] = [
-    { label: "Jobs Posted", value: stats?.totalJobs ?? 0, icon: Briefcase, color: "primary" },
-    { label: "Total Submitted", value: stats?.candidatesSubmitted ?? 0, icon: Users, color: "primary" },
-    { label: "Agency Shortlisted", value: stats?.agencyShortlisted ?? 0, icon: UserCheck, color: "accent" },
-    { label: "In Interview", value: stats?.inInterview ?? 0, icon: Video, color: "success" },
-    { label: "Hired", value: stats?.hired ?? 0, icon: CheckCircle, color: "success" },
-    { label: "Rejected", value: stats?.rejected ?? 0, icon: XCircle, color: "destructive" },
+  const cards = [
+    {
+      title: "Jobs managed",
+      value: stats?.totalJobs ?? 0,
+      icon: Briefcase,
+      trendText: "Open client jobs",
+      trendTone: "neutral" as const,
+    },
+    {
+      title: "Candidates submitted",
+      value: stats?.candidatesSubmitted ?? 0,
+      icon: Users,
+      trendText: "Total submissions",
+      trendTone: "neutral" as const,
+    },
+    {
+      title: "Client approvals",
+      value: stats?.hrShortlisted ?? 0,
+      icon: CheckCircle,
+      trendText: "Approved by client",
+      trendTone: "up" as const,
+    },
+    {
+      title: "Interviews scheduled",
+      value: stats?.inInterview ?? 0,
+      icon: Video,
+      trendText: "Interview stage",
+      trendTone: "neutral" as const,
+    },
+  ];
+
+  const performanceData = [
+    { name: "Submitted", value: stats?.candidatesSubmitted ?? 0 },
+    { name: "Shortlisted", value: (stats?.agencyShortlisted ?? 0) + (stats?.hrShortlisted ?? 0) },
+    { name: "Interview", value: stats?.inInterview ?? 0 },
+    { name: "Hired", value: stats?.hired ?? 0 },
   ];
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 sm:space-y-8 lg:space-y-10">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">Dashboard</h1>
-            <p className="text-muted-foreground mt-1 text-base sm:text-lg font-light">
-              Welcome back, {profile?.full_name?.split(" ")[0] || "there"}!
-            </p>
-          </div>
-          <Link to="/dashboard/candidates">
-            <Button className="w-full sm:w-fit shadow-lg shadow-primary/20 h-11 sm:h-12 px-6 sm:px-8">
-              <Plus className="w-4 h-4 mr-2" /> Submit Candidate
-            </Button>
-          </Link>
-        </div>
+      <div className="space-y-8">
+        <section className="space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight">Agency Dashboard</h1>
+          <p className="text-muted-foreground">
+            Manage client submissions and hiring progress with consistent visibility.
+          </p>
+        </section>
 
-        {/* KPI grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {isLoading
-            ? Array.from({ length: 6 }).map((_, i) => <KpiSkeleton key={i} />)
-            : statCards.map(s => <KpiCard key={s.label} {...s} />)}
-        </div>
+            ? Array.from({ length: 4 }).map((_, index) => <DashboardStatCardSkeleton key={index} />)
+            : cards.map((card) => <DashboardStatCard key={card.title} {...card} />)}
+        </section>
 
-        {/* Pipeline bar */}
-        {!isLoading && stats && stats.candidatesSubmitted > 0 && (
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {isLoading ? (
+            <div className="lg:col-span-2">
+              <DashboardSectionSkeleton />
+            </div>
+          ) : (
+            <Card className="card-dashboard lg:col-span-2">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg font-semibold">Submission Performance</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {(stats?.candidatesSubmitted ?? 0) === 0 ? (
+                  <div className="py-10 text-center">
+                    <Users className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+                    <p className="text-sm font-medium">No candidate submissions yet.</p>
+                  </div>
+                ) : (
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={performanceData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
+                        <XAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
+                        <YAxis allowDecimals={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
+                        <Tooltip formatter={(value: number) => [value, "Candidates"]} />
+                        <Bar dataKey="value" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          <QuickActionsCard
+            title="Quick Actions"
+            actions={[
+              { label: "Submit Candidate", href: "/dashboard/candidates", icon: UserCheck },
+              { label: "Search CVs", href: "/dashboard/resume-search", icon: Search },
+              { label: "Manage Client Jobs", href: "/dashboard/jobs", icon: Briefcase },
+            ]}
+          />
+        </section>
+
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ActivityTimeline
+            title="Recent Hiring Activity"
+            activities={activity}
+            isLoading={isActivityLoading}
+            emptyMessage="No hiring activity yet."
+          />
+
           <Card className="card-dashboard">
             <CardHeader className="pb-4">
-              <CardTitle className="text-base font-semibold">Pipeline Overview</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-1 h-6 rounded-full overflow-hidden">
-                {[
-                  { count: stats.agencyShortlisted, color: "bg-primary" },
-                  { count: stats.hrShortlisted, color: "bg-blue-500" },
-                  { count: stats.inInterview, color: "bg-accent" },
-                  { count: stats.hired, color: "bg-success" },
-                  { count: stats.rejected, color: "bg-destructive/60" },
-                ].filter(s => s.count > 0).map((seg, i) => (
-                  <div
-                    key={i}
-                    className={`${seg.color} h-full transition-all`}
-                    style={{ flex: seg.count }}
-                  />
-                ))}
-              </div>
-              <div className="flex flex-wrap gap-4 mt-3 text-xs text-muted-foreground">
-                {[
-                  { label: "Agency Shortlisted", color: "bg-primary", count: stats.agencyShortlisted },
-                  { label: "HR Shortlisted", color: "bg-blue-500", count: stats.hrShortlisted },
-                  { label: "Interview", color: "bg-accent", count: stats.inInterview },
-                  { label: "Hired", color: "bg-success", count: stats.hired },
-                  { label: "Rejected", color: "bg-destructive/60", count: stats.rejected },
-                ].map(item => (
-                  <div key={item.label} className="flex items-center gap-1.5">
-                    <div className={`w-2.5 h-2.5 rounded-full ${item.color}`} />
-                    {item.label}: <span className="font-medium text-foreground">{item.count}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Recent Submissions */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-          <Card className="lg:col-span-2 card-dashboard">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6">
               <CardTitle className="text-lg font-semibold">Recent Submissions</CardTitle>
-              <Link to="/dashboard/submissions">
-                <Button variant="ghost" size="sm" className="text-primary text-xs">
-                  View all <ArrowRight className="w-3 h-3 ml-1" />
-                </Button>
-              </Link>
             </CardHeader>
             <CardContent className="space-y-3">
               {isLoading ? (
-                Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-muted/10">
-                    <Skeleton className="w-9 h-9 rounded-xl" />
-                    <div className="flex-1 space-y-2"><Skeleton className="h-4 w-2/3" /><Skeleton className="h-3 w-1/2" /></div>
+                Array.from({ length: 4 }).map((_, index) => (
+                  <div key={index} className="rounded-xl bg-muted/10 p-3">
+                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="h-3 w-1/2 mt-2" />
                   </div>
                 ))
               ) : recentSubmissions.length > 0 ? (
-                recentSubmissions.map(sub => (
-                  <div key={sub.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/10 hover:bg-muted/20 transition-colors">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                        <User className="w-4 h-4 text-primary" />
-                      </div>
+                recentSubmissions.slice(0, 5).map((submission) => (
+                  <div key={submission.id} className="rounded-xl border border-border/20 p-3">
+                    <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{sub.candidateName}</p>
-                        <p className="text-xs text-muted-foreground truncate">{sub.jobTitle}</p>
+                        <p className="text-sm font-medium truncate">{submission.candidateName}</p>
+                        <p className="text-xs text-muted-foreground truncate">{submission.jobTitle}</p>
                       </div>
-                    </div>
-                    <div className="shrink-0 ml-2 text-right">
-                      {getStatusBadge(sub.status)}
-                      <p className="text-xs text-muted-foreground mt-1">{formatDate(sub.appliedAt)}</p>
+                      <div className="text-right ml-2">
+                        {getStatusBadge(submission.status)}
+                        <p className="text-xs text-muted-foreground mt-1">{formatDate(submission.appliedAt)}</p>
+                      </div>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="text-center py-10 text-muted-foreground">
-                  <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                  <p className="text-sm font-medium">No submissions yet</p>
-                  <p className="text-xs mt-1">Submit candidates to open job requests</p>
+                <div className="py-10 text-center">
+                  <Users className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+                  <p className="text-sm font-medium">No candidate submissions yet.</p>
                 </div>
               )}
             </CardContent>
           </Card>
-
-          {/* Quick Actions */}
-          <Card className="card-dashboard">
-            <CardHeader className="pb-6">
-              <CardTitle className="text-lg font-semibold">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {[
-                { label: "Browse Job Requests", href: "/dashboard/jobs", icon: Briefcase },
-                { label: "Search Talent", href: "/dashboard/talent-search", icon: Users },
-                { label: "All Submissions", href: "/dashboard/submissions", icon: FileText },
-                { label: "Reports", href: "/dashboard/reports", icon: BarChart3 },
-                { label: "Analytics", href: "/dashboard/analytics", icon: TrendingUp },
-              ].map(action => (
-                <Link key={action.label} to={action.href} className="block">
-                  <div className="flex items-center gap-3 p-3 rounded-xl border border-border/20 hover:bg-muted/20 hover:border-border/40 transition-all">
-                    <action.icon className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-medium">{action.label}</span>
-                    <ArrowRight className="w-3.5 h-3.5 text-muted-foreground ml-auto" />
-                  </div>
-                </Link>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
+        </section>
       </div>
     </DashboardLayout>
   );
 };
 
-// ─── MAIN ROUTER ─────────────────────────────────────────────────
 const Dashboard = () => {
   const { profile, isLoading } = useProfile();
 
@@ -547,7 +669,7 @@ const Dashboard = () => {
               </div>
               <h2 className="text-xl font-semibold">Account Not Configured</h2>
               <p className="text-muted-foreground text-sm">
-                Your account doesn't have a valid role. Please contact support.
+                Your account does not have a valid role. Please contact support.
               </p>
             </CardContent>
           </Card>
@@ -557,12 +679,18 @@ const Dashboard = () => {
   }
 
   switch (profile.role) {
-    case "employer": return <EmployerDashboard />;
-    case "agency": return <AgencyDashboard />;
-    case "expert":
-    case "admin":
     case "candidate":
-    default: return <CandidateDashboard />;
+      return <CandidateDashboard />;
+    case "employer":
+      return <EmployerDashboard />;
+    case "agency":
+      return <AgencyDashboard />;
+    case "admin":
+      return <Navigate to="/dashboard/admin/overview" replace />;
+    case "expert":
+      return <Navigate to="/dashboard/reviews" replace />;
+    default:
+      return <CandidateDashboard />;
   }
 };
 

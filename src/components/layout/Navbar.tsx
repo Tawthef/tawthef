@@ -18,9 +18,11 @@ const Navbar = () => {
   }, []);
 
   const navLinks = [
+    { name: "Jobs", href: "/jobs" },
+    { name: "Features", href: "#intelligence" },
     { name: "How It Works", href: "#how-it-works" },
-    { name: "Recruiters", href: "#recruiters" },
-    { name: "Pricing", href: "/pricing" },
+    { name: "Pricing", href: "#pricing" },
+    { name: "For Recruiters", href: "#recruiters" },
   ];
 
   return (

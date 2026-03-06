@@ -7,6 +7,7 @@ import WhatIsTawthef from "@/components/landing/WhatIsTawthef";
 import HowItWorks from "@/components/landing/HowItWorks";
 import BenefitsSection from "@/components/landing/BenefitsSection";
 import CTASection from "@/components/landing/CTASection";
+import SocialProofSection from "@/components/landing/SocialProofSection";
 
 const Index = () => {
   return (
@@ -20,6 +21,7 @@ const Index = () => {
         <HowItWorks />
         <BenefitsSection />
         <CTASection />
+        <SocialProofSection />
       </main>
       <Footer />
     </div>

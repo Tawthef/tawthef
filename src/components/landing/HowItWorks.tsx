@@ -69,8 +69,8 @@ const HowItWorks = () => {
           <h2 className="text-headline text-foreground mb-6">
             How It <span className="gradient-text">Works</span>
           </h2>
-          <p className="text-subhead max-w-2xl mx-auto">
-            Two recruitment models, one principle — mandatory two-level shortlisting
+          <p className="text-subhead max-w-2xl mx-auto leading-relaxed">
+            Two recruitment models, one principle - mandatory two-level shortlisting
             for quality and accountability.
           </p>
         </div>
@@ -105,14 +105,23 @@ const HowItWorks = () => {
           </div>
         </div>
 
+        <div className="max-w-3xl mx-auto mb-10">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 text-xs sm:text-sm text-muted-foreground">
+            <span className="rounded-full border border-border/60 bg-card/60 px-3 py-1">Agency Shortlisting</span>
+            <span className="text-muted-foreground/70">-&gt;</span>
+            <span className="rounded-full border border-border/60 bg-card/60 px-3 py-1">Employer Review</span>
+            <span className="text-muted-foreground/70">-&gt;</span>
+            <span className="rounded-full border border-border/60 bg-card/60 px-3 py-1">Hiring Decision</span>
+          </div>
+        </div>
+
         {/* Flow diagram */}
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
             {/* Level 1 */}
             <div className="card-premium p-8 lg:p-10 relative border-border/60 shadow-lg">
-              {/* Level badge - inside card */}
-              <div className="inline-flex bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full mb-6">
-                LEVEL 1
+              <div className="inline-flex bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full mb-4">
+                Step 1
               </div>
 
               <div className="flex items-center gap-5 mb-8">
@@ -148,9 +157,8 @@ const HowItWorks = () => {
 
             {/* Level 2 */}
             <div className="card-premium p-8 lg:p-10 relative border-accent/20 shadow-lg" style={{ borderColor: 'hsl(var(--accent) / 0.15)' }}>
-              {/* Level badge - inside card */}
-              <div className="inline-flex bg-accent/10 text-accent text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full mb-6">
-                LEVEL 2
+              <div className="inline-flex bg-accent/10 text-accent text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full mb-4">
+                Step 2
               </div>
 
               <div className="flex items-center gap-5 mb-8">
@@ -191,3 +199,6 @@ const HowItWorks = () => {
 };
 
 export default HowItWorks;
+
+
+

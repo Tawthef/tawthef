@@ -41,6 +41,17 @@ export interface JobReportResult {
     timeline: JobTimelineEntry[];
     statusBreakdown: Array<{ status: string; count: number; color: string }>;
     funnel: Array<{ stage: string; count: number; fill: string }>;
+    aiOverview: {
+        totalCandidates: number;
+        topTenPercentAverage: number;
+        recommendedCount: number;
+        recommendedApplications: Array<{
+            application_id: string;
+            candidate_id: string;
+            current_status: string;
+            score: number;
+        }>;
+    };
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -52,6 +63,20 @@ const STATUS_COLORS: Record<string, string> = {
     offer: 'hsl(45, 90%, 50%)',
     hired: 'hsl(var(--success))',
     rejected: 'hsl(var(--destructive))',
+};
+
+const toNumber = (value: unknown): number => {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') {
+        const parsed = Number(value);
+        if (Number.isFinite(parsed)) return parsed;
+    }
+    return 0;
+};
+
+const normalizeScore = (row: any) => {
+    const raw = toNumber(row?.score ?? row?.overall_score);
+    return Math.max(0, Math.min(100, Math.round(raw)));
 };
 
 /**
@@ -138,6 +163,51 @@ export function useJobReport(jobId: string | undefined) {
                 { stage: 'Hired', count: progress.hired_count, fill: STATUS_COLORS.hired },
             ];
 
+            // 6. AI match overview from existing ranking table
+            const { data: scoreRows, error: scoreError } = await supabase
+                .from('candidate_job_scores')
+                .select('*')
+                .eq('job_id', jobId);
+
+            if (scoreError) {
+                console.error('[useJobReport] Error fetching AI scores:', scoreError);
+            }
+
+            const rankedScores = (scoreRows || []).map((row: any) => ({
+                candidate_id: row.candidate_id,
+                score: normalizeScore(row),
+            }));
+            const sortedScores = [...rankedScores].sort((a, b) => b.score - a.score);
+            const topTenCount = Math.max(1, Math.ceil(sortedScores.length * 0.1));
+            const topTenRows = sortedScores.slice(0, topTenCount);
+            const topTenPercentAverage = topTenRows.length > 0
+                ? Math.round(topTenRows.reduce((sum, row) => sum + row.score, 0) / topTenRows.length)
+                : 0;
+
+            const recommendedCandidates = rankedScores.filter((row) => row.score > 75);
+            const recommendedCandidateIds = recommendedCandidates.map((row) => row.candidate_id);
+            let recommendedApplications: JobReportResult['aiOverview']['recommendedApplications'] = [];
+
+            if (recommendedCandidateIds.length > 0) {
+                const { data: appRows, error: appError } = await supabase
+                    .from('applications')
+                    .select('id, candidate_id, status')
+                    .eq('job_id', jobId)
+                    .in('candidate_id', recommendedCandidateIds);
+
+                if (appError) {
+                    console.error('[useJobReport] Error fetching recommended applications:', appError);
+                } else {
+                    const scoreByCandidateId = new Map(recommendedCandidates.map((item) => [item.candidate_id, item.score]));
+                    recommendedApplications = (appRows || []).map((app: any) => ({
+                        application_id: app.id,
+                        candidate_id: app.candidate_id,
+                        current_status: app.status,
+                        score: scoreByCandidateId.get(app.candidate_id) || 0,
+                    }));
+                }
+            }
+
             return {
                 job: {
                     id: job.id,
@@ -151,6 +221,12 @@ export function useJobReport(jobId: string | undefined) {
                 timeline,
                 statusBreakdown,
                 funnel,
+                aiOverview: {
+                    totalCandidates: rankedScores.length,
+                    topTenPercentAverage,
+                    recommendedCount: recommendedCandidates.length,
+                    recommendedApplications,
+                },
             };
         },
         enabled: !!jobId && !!user,
