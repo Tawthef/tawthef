@@ -36,9 +36,17 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import CookiePolicy from "./pages/CookiePolicy";
 import TalentSearch from "./pages/TalentSearch";
 import ResumeSearch from "./pages/ResumeSearch";
-import AdminSubscriptions from "./pages/AdminSubscriptions";
 import AdminOverview from "./pages/AdminOverview";
-import AdminUsers from "./pages/AdminUsers";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminOrganizations from "./pages/admin/AdminOrganizations";
+import AdminJobs from "./pages/admin/AdminJobs";
+import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
+import AdminAnalytics from "./pages/admin/AdminAnalytics";
+import AdminAuditLogs from "./pages/admin/AdminAuditLogs";
+import AdminRecruiterVerification from "./pages/admin/AdminRecruiterVerification";
+import AdminNotifications from "./pages/admin/AdminNotifications";
+import AdminBilling from "./pages/admin/AdminBilling";
+import AdminPlatformSettings from "./pages/admin/AdminPlatformSettings";
 import AdminLogin from "./pages/AdminLogin";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCancel from "./pages/PaymentCancel";
@@ -49,7 +57,6 @@ import CandidateProfilePage from "./pages/CandidateProfilePage";
 import PublicJobs from "./pages/PublicJobs";
 import PublicJobDetails from "./pages/PublicJobDetails";
 import JobPipeline from "./pages/JobPipeline";
-import AdminAuditLogs from "./pages/AdminAuditLogs";
 
 const queryClient = new QueryClient();
 
@@ -153,11 +160,17 @@ const App = () => (
             <Route element={<RoleProtectedRoute allowedRoles={['admin']} />}>
               <Route path="/dashboard/billing" element={<Billing />} />
               <Route path="/dashboard/admin/overview" element={<AdminOverview />} />
+              <Route path="/dashboard/admin/users" element={<AdminUsers />} />
+              <Route path="/dashboard/admin/organizations" element={<AdminOrganizations />} />
+              <Route path="/dashboard/admin/jobs" element={<AdminJobs />} />
               <Route path="/dashboard/admin/subscriptions" element={<AdminSubscriptions />} />
+              <Route path="/dashboard/admin/analytics" element={<AdminAnalytics />} />
               <Route path="/dashboard/admin/audit" element={<AdminAuditLogs />} />
-              <Route path="/dashboard/tenants" element={<FeaturePlaceholder title="Tenant Management" description="Manage platform organizations and workspaces." />} />
-              <Route path="/dashboard/users" element={<AdminUsers />} />
-              <Route path="/dashboard/logs" element={<AdminAuditLogs />} />
+              <Route path="/dashboard/admin/recruiter-verification" element={<AdminRecruiterVerification />} />
+              <Route path="/dashboard/admin/notifications" element={<AdminNotifications />} />
+              <Route path="/dashboard/admin/billing" element={<AdminBilling />} />
+              <Route path="/dashboard/admin/settings" element={<AdminPlatformSettings />} />
+              <Route path="/dashboard/tenants" element={<FeaturePlaceholder title="Tenant Management" description="Manage platform recruiters and workspaces." />} />
             </Route>
           </Route>
 

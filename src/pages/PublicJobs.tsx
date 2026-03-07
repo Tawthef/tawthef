@@ -275,7 +275,7 @@ const PublicJobs = () => {
                       <div className="space-y-1.5 text-sm text-muted-foreground">
                         <p className="flex items-center gap-2">
                           <Building2 className="w-4 h-4" />
-                          {job.organization_name}
+                          Recruiter: {job.organization_name}
                         </p>
                         <p className="flex items-center gap-2">
                           <MapPin className="w-4 h-4" />

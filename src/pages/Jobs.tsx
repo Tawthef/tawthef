@@ -218,7 +218,7 @@ const Jobs = () => {
                           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 lg:gap-8 text-sm text-muted-foreground font-light">
                             {job.organization_name && (
                               <span className="flex items-center gap-2.5">
-                                <Building2 className="w-4 h-4 opacity-60" />{job.organization_name}
+                                <Building2 className="w-4 h-4 opacity-60" />Recruiter: {job.organization_name}
                               </span>
                             )}
                             <span className="flex items-center gap-2.5">

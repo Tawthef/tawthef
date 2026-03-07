@@ -120,11 +120,33 @@ const DashboardSectionSkeleton = () => (
   </Card>
 );
 
+const DashboardErrorState = ({ title, description }: { title: string; description: string }) => (
+  <Card className="border-destructive/20 bg-destructive/5">
+    <CardContent className="py-12 text-center space-y-3">
+      <AlertCircle className="w-8 h-8 text-destructive mx-auto" />
+      <h2 className="text-lg font-semibold text-destructive">{title}</h2>
+      <p className="text-sm text-muted-foreground">{description}</p>
+    </CardContent>
+  </Card>
+);
+
 const CandidateDashboard = () => {
   const { profile } = useProfile();
-  const { stats, isLoading: isStatsLoading } = useCandidateStats();
-  const { data: applications = [], isLoading: isAppsLoading } = useCandidateApplications();
-  const { data: profileStrength, isLoading: isStrengthLoading } = useProfileStrength(profile?.id);
+  const { stats, isLoading: isStatsLoading, error: statsError } = useCandidateStats();
+  const { data: applications = [], isLoading: isAppsLoading, error: appsError } = useCandidateApplications();
+  const { data: profileStrength, isLoading: isStrengthLoading, error: strengthError } = useProfileStrength(profile?.id);
+
+  const candidateError = statsError || appsError || strengthError;
+  if (candidateError) {
+    return (
+      <DashboardLayout>
+        <DashboardErrorState
+          title="Failed to load candidate dashboard"
+          description="We could not fetch your applications and profile data from Supabase. Please refresh and try again."
+        />
+      </DashboardLayout>
+    );
+  }
 
   const profilePercentage = profileStrength?.percentage ?? stats?.profileCompleteness ?? 0;
   const missingSectionsCount = profileStrength?.missingSections?.length || 0;
@@ -339,7 +361,29 @@ const CandidateDashboard = () => {
 };
 
 const EmployerDashboard = () => {
-  const { stats, isLoading, activity, isActivityLoading, topAiMatches, isTopAiMatchesLoading } = useEmployerDashboard();
+  const {
+    stats,
+    isLoading,
+    error,
+    activity,
+    isActivityLoading,
+    activityError,
+    topAiMatches,
+    isTopAiMatchesLoading,
+    topAiMatchesError,
+  } = useEmployerDashboard();
+
+  const employerError = error || activityError || topAiMatchesError;
+  if (employerError) {
+    return (
+      <DashboardLayout>
+        <DashboardErrorState
+          title="Failed to load employer dashboard"
+          description="We could not fetch jobs, applications, and interview analytics from Supabase. Please refresh and try again."
+        />
+      </DashboardLayout>
+    );
+  }
 
   const cards = [
     {
@@ -497,7 +541,28 @@ const EmployerDashboard = () => {
 };
 
 const AgencyDashboard = () => {
-  const { stats, isLoading, recentSubmissions, activity, isActivityLoading } = useAgencyDashboard();
+  const {
+    stats,
+    isLoading,
+    error,
+    recentSubmissions,
+    recentError,
+    activity,
+    isActivityLoading,
+    activityError,
+  } = useAgencyDashboard();
+
+  const agencyError = error || recentError || activityError;
+  if (agencyError) {
+    return (
+      <DashboardLayout>
+        <DashboardErrorState
+          title="Failed to load agency dashboard"
+          description="We could not fetch agency submissions and pipeline activity from Supabase. Please refresh and try again."
+        />
+      </DashboardLayout>
+    );
+  }
 
   const cards = [
     {

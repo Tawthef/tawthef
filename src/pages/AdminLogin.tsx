@@ -26,6 +26,8 @@ const AdminLogin = () => {
             if (authError) {
                 if (authError.message?.includes("Invalid login credentials")) {
                     setError("Invalid email or password.");
+                } else if (authError.message?.toLowerCase().includes("suspended")) {
+                    setError("This account is suspended. Please contact support.");
                 } else {
                     setError("Authentication failed. Please try again.");
                 }

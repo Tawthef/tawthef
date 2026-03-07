@@ -122,7 +122,7 @@ const AdminSubscriptions = () => {
                         Subscription Monitoring
                     </h1>
                     <p className="text-lg text-muted-foreground mt-2">
-                        Monitor active subscriptions, usage, and revenue across all organizations
+                        Monitor active subscriptions, usage, and revenue across all recruiters
                     </p>
                 </div>
 
@@ -213,7 +213,7 @@ const AdminSubscriptions = () => {
                     <div className="relative flex-1 max-w-sm">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <Input
-                            placeholder="Search organization..."
+                            placeholder="Search recruiter..."
                             className="pl-11 h-11 rounded-xl"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
@@ -250,7 +250,7 @@ const AdminSubscriptions = () => {
                             <table className="w-full text-sm">
                                 <thead>
                                     <tr className="border-b bg-muted/30">
-                                        <th className="text-left px-6 py-4 font-semibold text-muted-foreground">Organization</th>
+                                        <th className="text-left px-6 py-4 font-semibold text-muted-foreground">Recruiter</th>
                                         <th className="text-left px-6 py-4 font-semibold text-muted-foreground">Plan Type</th>
                                         <th className="text-left px-6 py-4 font-semibold text-muted-foreground">Status</th>
                                         <th className="text-left px-6 py-4 font-semibold text-muted-foreground">Usage</th>

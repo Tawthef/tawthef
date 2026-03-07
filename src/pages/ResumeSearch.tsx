@@ -443,7 +443,7 @@ const ResumeSearch = () => {
           <Card className="border-warning/30 bg-warning/5">
             <CardContent className="p-4 text-sm text-warning flex items-center gap-2">
               <Briefcase className="w-4 h-4" />
-              No open jobs found for your organization. Create/open a job to enable invite and shortlist actions.
+              No open jobs found for your recruiter account. Create/open a job to enable invite and shortlist actions.
             </CardContent>
           </Card>
         )}

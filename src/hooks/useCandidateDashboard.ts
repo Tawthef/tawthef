@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 
@@ -23,13 +24,14 @@ interface CandidateApplication {
  */
 export function useCandidateStats() {
     const { user } = useAuth();
+    const queryClient = useQueryClient();
 
     const query = useQuery({
         queryKey: ['candidate-stats', user?.id],
         queryFn: async (): Promise<CandidateStats> => {
             if (!user) return { applicationsSubmitted: 0, interviewsScheduled: 0, offersReceived: 0, profileCompleteness: 0 };
 
-            const [appsRes, interviewsRes, offersRes, strengthRes] = await Promise.all([
+            const [appsRes, interviewsRes, offersRes, strengthRes, candidateProfileRes] = await Promise.all([
                 supabase
                     .from('applications')
                     .select('*', { count: 'exact', head: true })
@@ -47,18 +49,42 @@ export function useCandidateStats() {
                 supabase.rpc('calculate_profile_strength', {
                     p_candidate_id: user.id,
                 }),
+                supabase
+                    .from('candidate_profiles')
+                    .select('location, skills, years_experience, education, resume_url')
+                    .eq('candidate_id', user.id)
+                    .maybeSingle(),
             ]);
 
             const appsCount = appsRes.count || 0;
             const interviewsCount = interviewsRes.count || 0;
             const offersCount = offersRes.count || 0;
 
+            if (appsRes.error) throw appsRes.error;
+            if (interviewsRes.error) throw interviewsRes.error;
+            if (offersRes.error) throw offersRes.error;
+
+            const strengthRow = Array.isArray(strengthRes.data) ? strengthRes.data[0] : strengthRes.data;
+            const candidateProfile = candidateProfileRes.data as any;
+
             if (strengthRes.error) {
                 console.error('[useCandidateStats] Profile strength error:', strengthRes.error);
             }
+            if (candidateProfileRes.error) {
+                console.error('[useCandidateStats] Candidate profile error:', candidateProfileRes.error);
+            }
 
-            const strengthRow = Array.isArray(strengthRes.data) ? strengthRes.data[0] : strengthRes.data;
-            const profileCompleteness = Number(strengthRow?.percentage || 0);
+            const fallbackProfileCompleteness = (() => {
+                let score = 0;
+                if (candidateProfile?.location) score += 20;
+                if (Array.isArray(candidateProfile?.skills) && candidateProfile.skills.length > 0) score += 20;
+                if (Number(candidateProfile?.years_experience || 0) > 0) score += 20;
+                if (Array.isArray(candidateProfile?.education) && candidateProfile.education.length > 0) score += 20;
+                if (candidateProfile?.resume_url) score += 20;
+                return score;
+            })();
+
+            const profileCompleteness = Number(strengthRow?.percentage ?? fallbackProfileCompleteness ?? 0);
 
             return {
                 applicationsSubmitted: appsCount,
@@ -68,8 +94,38 @@ export function useCandidateStats() {
             };
         },
         enabled: !!user,
-        staleTime: 60 * 1000,
+        staleTime: 60000,
     });
+
+    useEffect(() => {
+        if (!user?.id) return;
+
+        const invalidate = () => {
+            queryClient.invalidateQueries({ queryKey: ['candidate-stats', user.id] });
+            queryClient.invalidateQueries({ queryKey: ['candidate-applications', user.id] });
+            queryClient.invalidateQueries({ queryKey: ['profile-strength', user.id] });
+        };
+
+        const channel = supabase
+            .channel(`candidate-dashboard-${user.id}-${Date.now()}`)
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'applications', filter: `candidate_id=eq.${user.id}` },
+                invalidate,
+            )
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'interviews' }, invalidate)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'offers' }, invalidate)
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'candidate_profiles', filter: `candidate_id=eq.${user.id}` },
+                invalidate,
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [queryClient, user?.id]);
 
     return {
         stats: query.data as CandidateStats,
@@ -83,8 +139,9 @@ export function useCandidateStats() {
  */
 export function useCandidateApplications() {
     const { user } = useAuth();
+    const queryClient = useQueryClient();
 
-    return useQuery({
+    const query = useQuery({
         queryKey: ['candidate-applications', user?.id],
         queryFn: async (): Promise<CandidateApplication[]> => {
             if (!user) return [];
@@ -98,10 +155,7 @@ export function useCandidateApplications() {
                 .eq('candidate_id', user.id)
                 .order('applied_at', { ascending: false });
 
-            if (error) {
-                console.error('[useCandidateApplications] Error:', error);
-                return [];
-            }
+            if (error) throw error;
 
             return (data || []).map((app: any) => ({
                 id: app.id,
@@ -113,6 +167,29 @@ export function useCandidateApplications() {
             }));
         },
         enabled: !!user,
-        staleTime: 60 * 1000,
+        staleTime: 60000,
     });
+
+    useEffect(() => {
+        if (!user?.id) return;
+
+        const invalidate = () => {
+            queryClient.invalidateQueries({ queryKey: ['candidate-applications', user.id] });
+        };
+
+        const channel = supabase
+            .channel(`candidate-applications-${user.id}-${Date.now()}`)
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'applications', filter: `candidate_id=eq.${user.id}` },
+                invalidate,
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [queryClient, user?.id]);
+
+    return query;
 }

@@ -90,11 +90,15 @@ const DashboardLayout = ({ children, role: propRole, userName: propUserName, com
       case "admin":
         return [
           { name: "Dashboard", href: "/dashboard/admin/overview", icon: LayoutDashboard },
-          { name: "Users", href: "/dashboard/users", icon: Users },
-          { name: "Organizations", href: "/dashboard/tenants", icon: Building2 },
-          { name: "Jobs", href: "/dashboard/jobs", icon: Briefcase },
+          { name: "Users Management", href: "/dashboard/admin/users", icon: Users },
+          { name: "Recruiters", href: "/dashboard/admin/organizations", icon: Building2 },
+          { name: "Recruiter Verification", href: "/dashboard/admin/recruiter-verification", icon: UserCheck },
+          { name: "Notifications", href: "/dashboard/admin/notifications", icon: Bell },
+          { name: "Billing", href: "/dashboard/admin/billing", icon: CreditCard },
+          { name: "Platform Settings", href: "/dashboard/admin/settings", icon: Settings },
+          { name: "Jobs Management", href: "/dashboard/admin/jobs", icon: Briefcase },
           { name: "Subscriptions", href: "/dashboard/admin/subscriptions", icon: CreditCard },
-          { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
+          { name: "Analytics", href: "/dashboard/admin/analytics", icon: BarChart3 },
           { name: "Audit Logs", href: "/dashboard/admin/audit", icon: FileText },
         ];
       default:

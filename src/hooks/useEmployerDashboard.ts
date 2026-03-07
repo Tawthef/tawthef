@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useProfile } from '@/hooks/useProfile';
 
@@ -49,25 +50,36 @@ const normalizeScore = (row: any) => {
 export function useEmployerDashboard() {
     const { profile } = useProfile();
     const orgId = profile?.organization_id;
+    const queryClient = useQueryClient();
 
     const statsQuery = useQuery({
         queryKey: ['employer-dashboard-stats', orgId],
         queryFn: async (): Promise<EmployerDashboardStats> => {
-            if (!orgId) return {
-                activeJobs: 0, totalApplicants: 0, shortlisted: 0,
-                inInterview: 0, offersSent: 0, hired: 0, rejected: 0,
-                subscriptionPlan: null, subscriptionActive: false,
-                jobSlotsUsed: 0, jobSlotsLimit: 0,
-            };
+            if (!orgId) {
+                return {
+                    activeJobs: 0,
+                    totalApplicants: 0,
+                    shortlisted: 0,
+                    inInterview: 0,
+                    offersSent: 0,
+                    hired: 0,
+                    rejected: 0,
+                    subscriptionPlan: null,
+                    subscriptionActive: false,
+                    jobSlotsUsed: 0,
+                    jobSlotsLimit: 0,
+                };
+            }
 
-            // Fetch jobs once and derive active/open metrics locally.
-            const { data: jobRows } = await supabase
+            const { data: jobRows, error: jobsError } = await supabase
                 .from('jobs')
                 .select('id, status')
                 .eq('organization_id', orgId);
+            if (jobsError) throw jobsError;
 
-            const jobIds = (jobRows || []).map(j => j.id);
-            const activeJobs = (jobRows || []).filter((job: any) => ['active', 'open'].includes(job.status)).length;
+            const jobs = jobRows || [];
+            const jobIds = jobs.map((job: any) => job.id).filter(Boolean);
+            const activeJobs = jobs.filter((job: any) => ['active', 'open'].includes(job.status)).length;
 
             let totalApplicants = 0;
             let shortlisted = 0;
@@ -77,24 +89,35 @@ export function useEmployerDashboard() {
             let rejected = 0;
 
             if (jobIds.length > 0) {
-                const { data: apps } = await supabase
+                const { data: appRows, error: appsError } = await supabase
                     .from('applications')
-                    .select('status')
+                    .select('id, status')
                     .in('job_id', jobIds);
+                if (appsError) throw appsError;
 
-                const appList = apps || [];
-                totalApplicants = appList.length;
-                shortlisted = appList.filter(a =>
-                    ['agency_shortlisted', 'hr_shortlisted', 'technical_shortlisted'].includes(a.status)
+                const apps = appRows || [];
+                const appIds = apps.map((app: any) => app.id).filter(Boolean);
+
+                totalApplicants = apps.length;
+                shortlisted = apps.filter((app: any) =>
+                    ['agency_shortlisted', 'hr_shortlisted', 'technical_shortlisted'].includes(app.status),
                 ).length;
-                inInterview = appList.filter(a => a.status === 'interview').length;
-                offersSent = appList.filter(a => ['offer', 'offer_sent', 'offered'].includes(a.status)).length;
-                hired = appList.filter(a => a.status === 'hired').length;
-                rejected = appList.filter(a => a.status === 'rejected').length;
+                offersSent = apps.filter((app: any) => ['offer', 'offer_sent', 'offered'].includes(app.status)).length;
+                hired = apps.filter((app: any) => app.status === 'hired').length;
+                rejected = apps.filter((app: any) => app.status === 'rejected').length;
+
+                if (appIds.length > 0) {
+                    const { count: interviewsCount, error: interviewsError } = await supabase
+                        .from('interviews')
+                        .select('*', { count: 'exact', head: true })
+                        .in('application_id', appIds)
+                        .eq('status', 'scheduled');
+                    if (interviewsError) throw interviewsError;
+                    inInterview = Number(interviewsCount || 0);
+                }
             }
 
-            // Subscription data
-            const { data: sub } = await supabase
+            const { data: sub, error: subError } = await supabase
                 .from('subscriptions')
                 .select('plan_type, is_active, usage_used, usage_limit, end_date')
                 .eq('organization_id', orgId)
@@ -104,6 +127,7 @@ export function useEmployerDashboard() {
                 .order('created_at', { ascending: false })
                 .limit(1)
                 .maybeSingle();
+            if (subError) throw subError;
 
             return {
                 activeJobs,
@@ -120,7 +144,7 @@ export function useEmployerDashboard() {
             };
         },
         enabled: !!orgId,
-        staleTime: 60 * 1000,
+        staleTime: 60000,
     });
 
     const activityQuery = useQuery({
@@ -134,16 +158,12 @@ export function useEmployerDashboard() {
                 .eq('organization_id', orgId)
                 .order('created_at', { ascending: false })
                 .limit(10);
-
-            if (error) {
-                console.error('[useEmployerDashboard] Activity error:', error);
-                return [];
-            }
+            if (error) throw error;
 
             return (data || []) as EmployerRecentActivity[];
         },
         enabled: !!orgId,
-        staleTime: 60 * 1000,
+        staleTime: 60000,
     });
 
     const topAiMatchesQuery = useQuery({
@@ -155,8 +175,8 @@ export function useEmployerDashboard() {
                 .from('jobs')
                 .select('id, title')
                 .eq('organization_id', orgId);
-
-            if (jobsError || !jobs || jobs.length === 0) return [];
+            if (jobsError) throw jobsError;
+            if (!jobs || jobs.length === 0) return [];
 
             const jobIds = jobs.map((job: any) => job.id);
             const jobTitleById = new Map(jobs.map((job: any) => [job.id, job.title || 'Untitled Job']));
@@ -167,21 +187,26 @@ export function useEmployerDashboard() {
                 .in('job_id', jobIds)
                 .order('updated_at', { ascending: false })
                 .limit(300);
+            if (scoreError) throw scoreError;
+            if (!scoreRows || scoreRows.length === 0) return [];
 
-            if (scoreError || !scoreRows || scoreRows.length === 0) return [];
+            const candidateIds = Array.from(
+                new Set(scoreRows.map((row: any) => row.candidate_id).filter(Boolean)),
+            ) as string[];
 
-            const candidateIds = Array.from(new Set(scoreRows.map((row: any) => row.candidate_id).filter(Boolean)));
             let profileRows: any[] = [];
             if (candidateIds.length > 0) {
-                const { data: profiles } = await supabase
+                const { data: profiles, error: profilesError } = await supabase
                     .from('profiles')
                     .select('id, full_name')
                     .in('id', candidateIds);
-
+                if (profilesError) throw profilesError;
                 profileRows = profiles || [];
             }
 
-            const nameById = new Map(profileRows.map((profile: any) => [profile.id, profile.full_name || 'Candidate']));
+            const nameById = new Map(
+                profileRows.map((profile: any) => [profile.id, profile.full_name || 'Candidate']),
+            );
 
             return scoreRows
                 .map((row: any) => ({
@@ -196,15 +221,43 @@ export function useEmployerDashboard() {
                 .slice(0, 5);
         },
         enabled: !!orgId,
-        staleTime: 60 * 1000,
+        staleTime: 60000,
     });
+
+    useEffect(() => {
+        if (!orgId) return;
+
+        const invalidate = () => {
+            queryClient.invalidateQueries({ queryKey: ['employer-dashboard-stats', orgId] });
+            queryClient.invalidateQueries({ queryKey: ['employer-recent-activity', orgId] });
+            queryClient.invalidateQueries({ queryKey: ['employer-top-ai-matches', orgId] });
+        };
+
+        const channel = supabase
+            .channel(`employer-dashboard-${orgId}-${Date.now()}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs', filter: `organization_id=eq.${orgId}` }, invalidate)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'applications' }, invalidate)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'interviews' }, invalidate)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'subscriptions', filter: `organization_id=eq.${orgId}` }, invalidate)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'activity_logs', filter: `organization_id=eq.${orgId}` }, invalidate)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'candidate_job_scores' }, invalidate)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, invalidate)
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [orgId, queryClient]);
 
     return {
         stats: statsQuery.data,
         isLoading: statsQuery.isLoading,
+        error: statsQuery.error,
         activity: activityQuery.data || [],
         isActivityLoading: activityQuery.isLoading,
+        activityError: activityQuery.error,
         topAiMatches: topAiMatchesQuery.data || [],
         isTopAiMatchesLoading: topAiMatchesQuery.isLoading,
+        topAiMatchesError: topAiMatchesQuery.error,
     };
 }

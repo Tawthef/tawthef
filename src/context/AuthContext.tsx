@@ -40,8 +40,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const signIn = async (email: string, password: string) => {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        return { error: error as Error | null };
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) return { error: error as Error | null };
+
+        // Prevent suspended accounts from maintaining an authenticated session.
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('status')
+            .eq('id', data.user.id)
+            .maybeSingle();
+
+        if (profile?.status === 'suspended') {
+            await supabase.auth.signOut();
+            return { error: new Error('Your account is suspended. Please contact support.') };
+        }
+
+        return { error: null };
     };
 
     const signUp = async (email: string, password: string, metadata?: { full_name?: string; role?: string }) => {

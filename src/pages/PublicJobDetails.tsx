@@ -108,7 +108,7 @@ const PublicJobDetails = () => {
                   <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                     <span className="inline-flex items-center gap-1.5">
                       <Building2 className="w-4 h-4" />
-                      {job.organization_name}
+                      Recruiter: {job.organization_name}
                     </span>
                     <span className="inline-flex items-center gap-1.5">
                       <MapPin className="w-4 h-4" />
@@ -167,11 +167,11 @@ const PublicJobDetails = () => {
 
               <Card className="border-0 card-float">
                 <CardHeader>
-                  <CardTitle className="text-lg">Company & Role Info</CardTitle>
+                  <CardTitle className="text-lg">Recruiter & Role Info</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-1">
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Company</p>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Recruiter</p>
                     <p className="font-medium">{job.organization_name}</p>
                     {job.organization_type ? (
                       <Badge variant="outline" className="capitalize mt-1">

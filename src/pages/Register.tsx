@@ -87,13 +87,10 @@ const Register = () => {
       // Success - navigate to dashboard
       // Note: Profile creation will be added in Phase 4
       navigate("/dashboard");
-    } catch {
-      // Fallback to mock behavior if Supabase fails completely
-      console.warn('[Auth] Supabase unavailable, using mock register');
-      setTimeout(() => {
-        setIsLoading(false);
-        navigate("/dashboard");
-      }, 1000);
+    } catch (caughtError: any) {
+      console.error('[Auth] Register error:', caughtError);
+      setError(caughtError?.message || 'Unable to create account. Please try again.');
+      setIsLoading(false);
     }
   };
 

@@ -136,7 +136,7 @@ const AdminUsers = () => {
                             <div className="relative w-full sm:w-72">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                 <Input
-                                    placeholder="Search name, email, org..."
+                                    placeholder="Search name, email, recruiter..."
                                     value={search}
                                     onChange={e => setSearch(e.target.value)}
                                     className="pl-9 h-9 rounded-lg"
@@ -157,7 +157,7 @@ const AdminUsers = () => {
                                     <thead>
                                         <tr className="border-b border-border/20 text-muted-foreground">
                                             <th className="text-left py-3 px-6 font-medium">User</th>
-                                            <th className="text-left py-3 px-4 font-medium">Organization</th>
+                                            <th className="text-left py-3 px-4 font-medium">Recruiter</th>
                                             <th className="text-left py-3 px-4 font-medium">Role</th>
                                             <th className="text-left py-3 px-4 font-medium">Joined</th>
                                             <th className="text-left py-3 px-4 font-medium">Last Login</th>

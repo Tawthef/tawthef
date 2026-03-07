@@ -1,17 +1,19 @@
 import { Navigate } from "react-router-dom";
 import {
-  Activity,
-  AlertTriangle,
   Briefcase,
   CreditCard,
   FileText,
   Loader2,
+  UserPlus,
+  UserRoundCog,
   Users,
 } from "lucide-react";
 import {
   Bar,
   BarChart,
   CartesianGrid,
+  Line,
+  LineChart,
   Legend,
   ResponsiveContainer,
   Tooltip,
@@ -25,6 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAdminDashboard } from "@/hooks/useAdminDashboard";
+import { useAdminPlatformMetrics } from "@/hooks/useAdminPlatformMetrics";
 import { useProfile } from "@/hooks/useProfile";
 
 const formatDate = (value: string) =>
@@ -33,9 +36,23 @@ const formatDate = (value: string) =>
 const formatPlan = (value: string) =>
   value?.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()) || "Unknown";
 
+const formatNumber = (value: number) => value.toLocaleString("en-US");
+
 const AdminOverview = () => {
   const { profile } = useProfile();
-  const { data, isLoading, error, activity, isActivityLoading, kpis, isKpisLoading } = useAdminDashboard();
+  const { data, isLoading, error, activity, isActivityLoading, activityError, kpisError } = useAdminDashboard();
+  const {
+    totalCandidates,
+    totalRecruiters,
+    activeJobs,
+    totalApplications,
+    newRegistrations,
+    subscriptionSummary,
+    applicationsTrend,
+    isMetricsLoading,
+    isApplicationsTrendLoading,
+    error: metricsError,
+  } = useAdminPlatformMetrics();
 
   if (profile?.role !== "admin") {
     return <Navigate to="/dashboard" replace />;
@@ -49,11 +66,19 @@ const AdminOverview = () => {
             <Skeleton className="h-9 w-72" />
             <Skeleton className="h-5 w-96" />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-            {Array.from({ length: 5 }).map((_, index) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, index) => (
               <DashboardStatCardSkeleton key={index} />
             ))}
           </div>
+          <Card className="card-dashboard">
+            <CardHeader>
+              <Skeleton className="h-5 w-48" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-72 w-full" />
+            </CardContent>
+          </Card>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {Array.from({ length: 2 }).map((_, index) => (
               <Card key={index} className="card-dashboard">
@@ -71,7 +96,7 @@ const AdminOverview = () => {
     );
   }
 
-  if (error || !data) {
+  if (error || activityError || kpisError || metricsError || !data) {
     return (
       <DashboardLayout>
         <Card className="border-destructive/20 bg-destructive/5">
@@ -84,41 +109,51 @@ const AdminOverview = () => {
     );
   }
 
+  const totalSubscriptions =
+    subscriptionSummary.active + subscriptionSummary.trial + subscriptionSummary.expired;
+
   const kpiCards = [
     {
-      title: "Total users",
-      value: kpis?.totalUsers ?? 0,
+      title: "Total Candidates",
+      value: formatNumber(totalCandidates),
       icon: Users,
-      trendText: "Candidates, employers, agencies",
+      trendText: "Registered job seekers",
       trendTone: "neutral" as const,
     },
     {
-      title: "Total jobs",
-      value: kpis?.totalJobs ?? 0,
+      title: "Total Recruiters",
+      value: formatNumber(totalRecruiters),
+      icon: UserRoundCog,
+      trendText: "Employers and agencies",
+      trendTone: "neutral" as const,
+    },
+    {
+      title: "Active Job Postings",
+      value: formatNumber(activeJobs),
       icon: Briefcase,
-      trendText: "Platform-wide jobs",
+      trendText: "Jobs with open status",
       trendTone: "neutral" as const,
     },
     {
-      title: "Applications today",
-      value: kpis?.applicationsToday ?? 0,
+      title: "Applications Submitted",
+      value: formatNumber(totalApplications),
       icon: FileText,
-      trendText: "New applications today",
-      trendTone: "up" as const,
-    },
-    {
-      title: "Active subscriptions",
-      value: kpis?.activeSubscriptions ?? 0,
-      icon: CreditCard,
-      trendText: "Current paid organizations",
+      trendText: "Total applications on platform",
       trendTone: "neutral" as const,
     },
     {
-      title: "Platform activity",
-      value: kpis?.platformActivity ?? 0,
-      icon: Activity,
-      trendText: "Events logged today",
+      title: "New User Registrations",
+      value: formatNumber(newRegistrations),
+      icon: UserPlus,
+      trendText: "Last 30 days",
       trendTone: "up" as const,
+    },
+    {
+      title: "Subscription Summary",
+      value: formatNumber(totalSubscriptions),
+      icon: CreditCard,
+      trendText: `Active: ${formatNumber(subscriptionSummary.active)}  Trial: ${formatNumber(subscriptionSummary.trial)}  Expired: ${formatNumber(subscriptionSummary.expired)}`,
+      trendTone: "neutral" as const,
     },
   ];
 
@@ -132,10 +167,45 @@ const AdminOverview = () => {
           </p>
         </section>
 
-        <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-          {isKpisLoading
-            ? Array.from({ length: 5 }).map((_, index) => <DashboardStatCardSkeleton key={index} />)
+        <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {isMetricsLoading
+            ? Array.from({ length: 6 }).map((_, index) => <DashboardStatCardSkeleton key={index} />)
             : kpiCards.map((card) => <DashboardStatCard key={card.title} {...card} />)}
+        </section>
+
+        <section>
+          <Card className="card-dashboard">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-semibold">Applications Trend (Last 30 Days)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isApplicationsTrendLoading ? (
+                <Skeleton className="h-72 w-full" />
+              ) : applicationsTrend.length > 0 ? (
+                <div className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={applicationsTrend} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
+                      <XAxis dataKey="label" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
+                      <YAxis allowDecimals={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
+                      <Tooltip />
+                      <Line
+                        type="monotone"
+                        dataKey="applications"
+                        name="Applications"
+                        stroke="hsl(var(--primary))"
+                        strokeWidth={2}
+                        dot={false}
+                        activeDot={{ r: 4 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-10">No applications trend data available yet.</p>
+              )}
+            </CardContent>
+          </Card>
         </section>
 
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -177,7 +247,7 @@ const AdminOverview = () => {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border/30">
-                        <th className="text-left py-2 pr-3 font-medium text-muted-foreground">Organization</th>
+                        <th className="text-left py-2 pr-3 font-medium text-muted-foreground">Recruiter</th>
                         <th className="text-left py-2 pr-3 font-medium text-muted-foreground">Plan</th>
                         <th className="text-left py-2 pr-3 font-medium text-muted-foreground">Expiry</th>
                         <th className="text-left py-2 font-medium text-muted-foreground">Status</th>

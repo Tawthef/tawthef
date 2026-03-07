@@ -27,6 +27,8 @@ const Login = () => {
         // Map Supabase errors to user-friendly messages
         if (authError.message?.includes('Invalid login credentials')) {
           setError('Invalid email or password');
+        } else if (authError.message?.toLowerCase().includes('suspended')) {
+          setError('Your account is suspended. Please contact support.');
         } else if (authError.message?.includes('Email not confirmed')) {
           setError('Please check your email to confirm your account');
         } else {
@@ -38,13 +40,10 @@ const Login = () => {
 
       // Success - navigate to dashboard
       navigate("/dashboard");
-    } catch {
-      // Fallback to mock behavior if Supabase fails completely
-      console.warn('[Auth] Supabase unavailable, using mock login');
-      setTimeout(() => {
-        setIsLoading(false);
-        navigate("/dashboard");
-      }, 1000);
+    } catch (caughtError: any) {
+      console.error('[Auth] Login error:', caughtError);
+      setError(caughtError?.message || 'Unable to sign in. Please try again.');
+      setIsLoading(false);
     }
   };
 

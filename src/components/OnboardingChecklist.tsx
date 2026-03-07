@@ -81,7 +81,7 @@ export const getCandidateChecklist = (profile: any, applicationsCount: number): 
 ];
 
 export const getEmployerChecklist = (hasOrg: boolean, jobsCount: number, candidatesCount: number): ChecklistItem[] => [
-    { id: 'org', label: 'Set up organization', completed: hasOrg, href: '/dashboard/settings' },
+    { id: 'org', label: 'Set up recruiter profile', completed: hasOrg, href: '/dashboard/settings' },
     { id: 'job', label: 'Post your first job', completed: jobsCount > 0, href: '/dashboard/jobs' },
     { id: 'review', label: 'Review candidates', completed: candidatesCount > 0, href: '/dashboard/candidates' },
 ];

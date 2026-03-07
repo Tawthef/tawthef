@@ -5,7 +5,7 @@ const WhatIsTawthef = () => {
     {
       icon: Briefcase,
       title: "Enterprise ATS",
-      description: "Secure hiring platform for organizations managing multi-stage hiring workflows.",
+      description: "Secure hiring platform for recruiters managing multi-stage hiring workflows.",
       gradient: "from-primary/15 to-primary/5",
       iconColor: "text-primary",
     },

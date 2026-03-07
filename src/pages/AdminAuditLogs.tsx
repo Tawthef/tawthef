@@ -96,7 +96,7 @@ const AdminAuditLogs = () => {
       const orgNameById = new Map(
         ((orgsRes.data || []) as Array<{ id: string; name: string | null }>).map((row) => [
           row.id,
-          row.name || "Unknown organization",
+          row.name || "Unknown recruiter",
         ]),
       );
 
@@ -104,7 +104,7 @@ const AdminAuditLogs = () => {
         ...log,
         user_name: log.user_id ? userNameById.get(log.user_id) || "Unknown user" : "System",
         organization_name: log.organization_id
-          ? orgNameById.get(log.organization_id) || "Unknown organization"
+          ? orgNameById.get(log.organization_id) || "Unknown recruiter"
           : "Global",
       }));
     },
@@ -202,7 +202,7 @@ const AdminAuditLogs = () => {
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground">Action</th>
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground">Entity</th>
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground">User</th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Organization</th>
+                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Recruiter</th>
                       <th className="text-left py-3 px-4 font-medium text-muted-foreground">Metadata</th>
                     </tr>
                   </thead>

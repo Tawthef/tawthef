@@ -83,7 +83,7 @@ const RecommendedJobs = () => {
                     </div>
                     <div className="min-w-0 space-y-2">
                       <p className="text-base font-semibold text-foreground truncate">{job.title}</p>
-                      <p className="text-sm text-muted-foreground truncate">{job.organization_name}</p>
+                      <p className="text-sm text-muted-foreground truncate">Recruiter: {job.organization_name}</p>
                     </div>
                   </div>
 

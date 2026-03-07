@@ -80,7 +80,7 @@ const AccountSetup = () => {
                     console.error("[AccountSetup] Organization creation error:", orgError);
                     toast({
                         title: "Error",
-                        description: "Failed to create organization",
+                        description: "Failed to create recruiter profile",
                         variant: "destructive",
                     });
                     setIsLoading(false);

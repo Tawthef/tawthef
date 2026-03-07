@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 
@@ -19,6 +20,7 @@ export interface Job {
  */
 export function useJobs() {
     const { user } = useAuth();
+    const queryClient = useQueryClient();
 
     const query = useQuery({
         queryKey: ['jobs', user?.id],
@@ -40,8 +42,7 @@ export function useJobs() {
                     .order('created_at', { ascending: false });
 
                 if (jobsError) {
-                    console.error('[useJobs] Error fetching jobs:', jobsError);
-                    return [];
+                    throw jobsError;
                 }
                 return jobsData as Job[];
             }
@@ -49,8 +50,26 @@ export function useJobs() {
             return data as Job[];
         },
         enabled: !!user,
-        staleTime: 2 * 60 * 1000, // Cache for 2 minutes
+        staleTime: 60000,
     });
+
+    useEffect(() => {
+        if (!user?.id) return;
+
+        const invalidate = () => {
+            queryClient.invalidateQueries({ queryKey: ['jobs', user.id] });
+        };
+
+        const channel = supabase
+            .channel(`jobs-realtime-${user.id}-${Date.now()}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, invalidate)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'organizations' }, invalidate)
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [queryClient, user?.id]);
 
     return {
         jobs: query.data || [],

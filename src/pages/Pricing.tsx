@@ -29,7 +29,7 @@ const Pricing = () => {
         if (!profile?.organization_id) {
             toast({
                 title: "Error",
-                description: "Organization not found. Please complete account setup.",
+                description: "Recruiter account not found. Please complete account setup.",
                 variant: "destructive",
             });
             return;

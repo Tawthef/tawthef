@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
@@ -29,15 +30,31 @@ export function useApplications() {
                 .select('*')
                 .order('applied_at', { ascending: false });
 
-            if (error) {
-                console.error('[useApplications] Error:', error);
-                return [];
-            }
+            if (error) throw error;
             return data as Application[];
         },
         enabled: !!user,
-        staleTime: 60 * 1000, // Cache for 1 minute
+        staleTime: 60000,
     });
+
+    useEffect(() => {
+        if (!user?.id) return;
+
+        const invalidate = () => {
+            queryClient.invalidateQueries({ queryKey: ['applications', user.id] });
+            queryClient.invalidateQueries({ queryKey: ['candidate-applications', user.id] });
+            queryClient.invalidateQueries({ queryKey: ['candidate-stats', user.id] });
+        };
+
+        const channel = supabase
+            .channel(`applications-realtime-${user.id}-${Date.now()}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'applications' }, invalidate)
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [queryClient, user?.id]);
 
     // Apply to a job
     const applyMutation = useMutation({
