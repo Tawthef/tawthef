@@ -1,9 +1,56 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Sparkles } from "lucide-react";
-import dashboardPreview from "@/assets/dashboard-preview.svg";
+import { ArrowRight, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import dashboard1 from "@/assets/dashboard1.png";
+import dashboard2 from "@/assets/dashboard2.png";
+import dashboard3 from "@/assets/dashboard3.png";
+import dashboard4 from "@/assets/dashboard4.png";
+
+const showcaseImages = [
+  {
+    src: dashboard1,
+    alt: "Recruiter dashboard overview",
+    label: "Recruiter Dashboard",
+  },
+  {
+    src: dashboard2,
+    alt: "AI candidate ranking interface",
+    label: "AI Candidate Ranking",
+  },
+  {
+    src: dashboard3,
+    alt: "Interview pipeline view",
+    label: "Interview Pipeline",
+  },
+  {
+    src: dashboard4,
+    alt: "Hiring analytics and activity view",
+    label: "Hiring Analytics",
+  },
+] as const;
 
 const HeroSection = () => {
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setActiveIndex((current) => (current + 1) % showcaseImages.length);
+    }, 4000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  const goToPrevious = () => {
+    setActiveIndex((current) => (current - 1 + showcaseImages.length) % showcaseImages.length);
+  };
+
+  const goToNext = () => {
+    setActiveIndex((current) => (current + 1) % showcaseImages.length);
+  };
+
   return (
     <section className="relative min-h-screen flex flex-col overflow-hidden gradient-hero">
       <div className="absolute inset-0 overflow-hidden -z-10">
@@ -63,20 +110,65 @@ const HeroSection = () => {
 
           <div className="w-full max-w-[900px] mx-auto mb-8 px-1 sm:px-0 animate-fade-in" style={{ animationDelay: "0.25s" }}>
             <div className="relative overflow-hidden rounded-2xl shadow-xl shadow-black/10 border border-border/30 bg-card/80">
-              <img
-                src={dashboardPreview}
-                alt="Tawthef dashboard preview"
-                className="w-full h-auto object-cover"
-                loading="lazy"
-              />
-              <div className="absolute top-3 left-3 sm:top-4 sm:left-4 rounded-full bg-card/85 border border-border/40 px-3 py-1 text-[10px] sm:text-xs text-foreground/80">
-                AI Candidate Ranking
-              </div>
-              <div className="absolute top-3 right-3 sm:top-4 sm:right-4 rounded-full bg-card/85 border border-border/40 px-3 py-1 text-[10px] sm:text-xs text-foreground/80">
-                Recruiter Dashboard
-              </div>
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 sm:bottom-4 rounded-full bg-card/85 border border-border/40 px-3 py-1 text-[10px] sm:text-xs text-foreground/80 whitespace-nowrap">
-                Interview Pipeline
+              <div className="relative overflow-hidden">
+                <div
+                  className="flex transition-transform duration-700 ease-out"
+                  style={{ transform: `translateX(-${activeIndex * 100}%)` }}
+                >
+                  {showcaseImages.map((image) => (
+                    <div key={image.label} className="min-w-full">
+                      <img
+                        src={image.src}
+                        alt={image.alt}
+                        className="w-full h-auto object-cover"
+                        loading="lazy"
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-slate-950/30 via-slate-950/10 to-transparent" />
+                <div className="absolute top-3 left-3 sm:top-4 sm:left-4 rounded-full bg-card/88 backdrop-blur-md border border-white/30 px-3 py-1 text-[10px] sm:text-xs font-medium text-foreground/85 shadow-sm">
+                  {showcaseImages[activeIndex].label}
+                </div>
+
+                <div className="absolute inset-y-0 left-3 right-3 flex items-center justify-between sm:left-4 sm:right-4">
+                  <button
+                    type="button"
+                    onClick={goToPrevious}
+                    className="flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-slate-950/50 text-white backdrop-blur-md transition-all hover:bg-slate-950/65"
+                    aria-label="Show previous screenshot"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={goToNext}
+                    className="flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-slate-950/50 text-white backdrop-blur-md transition-all hover:bg-slate-950/65"
+                    aria-label="Show next screenshot"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-card/80 px-3 py-2 backdrop-blur-md sm:bottom-4">
+                  {showcaseImages.map((image, index) => {
+                    const isActive = index === activeIndex;
+
+                    return (
+                      <button
+                        key={image.label}
+                        type="button"
+                        onClick={() => setActiveIndex(index)}
+                        className={`h-2.5 rounded-full transition-all duration-300 ${
+                          isActive ? "w-6 bg-primary" : "w-2.5 bg-foreground/25 hover:bg-foreground/40"
+                        }`}
+                        aria-label={`Show ${image.label}`}
+                        aria-pressed={isActive}
+                      />
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
