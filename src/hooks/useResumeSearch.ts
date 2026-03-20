@@ -41,6 +41,7 @@ export function useResumeSearch(filters: ResumeSearchFilters) {
     queryKey: ["resume-search", profile?.id, filters],
     queryFn: async (): Promise<ResumeSearchCandidate[]> => {
       if (!profile || !["employer", "agency", "admin"].includes(profile.role)) return [];
+      if (["employer", "agency"].includes(profile.role) && profile.verification_status !== "verified") return [];
 
       const { data, error } = await supabase.rpc("search_candidates", {
         p_skills: filters.skills,
@@ -73,7 +74,10 @@ export function useResumeSearch(filters: ResumeSearchFilters) {
         } as ResumeSearchCandidate;
       });
     },
-    enabled: !!profile && ["employer", "agency", "admin"].includes(profile.role),
+    enabled:
+      !!profile &&
+      ["employer", "agency", "admin"].includes(profile.role) &&
+      (profile.role === "admin" || profile.verification_status === "verified"),
     staleTime: 60 * 1000,
   });
 }

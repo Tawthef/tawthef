@@ -9,9 +9,7 @@ export type RecruiterOrganizationType = "employer" | "agency";
 export type RecruiterVerificationStatus = "pending" | "verified" | "rejected";
 
 export interface RecruiterDocument {
-  label: "Business License" | "Company Registration" | "Tax Certificate" | "Document";
   fileName: string;
-  path: string;
   url: string;
 }
 
@@ -24,7 +22,6 @@ export interface AdminRecruiterVerificationItem {
   organization_type: RecruiterOrganizationType;
   country: string | null;
   verification_status: RecruiterVerificationStatus;
-  rejection_reason: string | null;
   documents: RecruiterDocument[];
   created_at: string;
 }
@@ -51,24 +48,22 @@ interface RecruiterRow {
   full_name: string | null;
   role: string | null;
   organization_id: string | null;
+  verification_status?: string | null;
+  verification_documents?: string[] | null;
   created_at: string;
   organizations?:
     | {
-      id?: string | null;
-      name?: string | null;
-      type?: string | null;
-      country?: string | null;
-      verification_status?: string | null;
-      rejection_reason?: string | null;
-    }
+        id?: string | null;
+        name?: string | null;
+        type?: string | null;
+        country?: string | null;
+      }
     | Array<{
-      id?: string | null;
-      name?: string | null;
-      type?: string | null;
-      country?: string | null;
-      verification_status?: string | null;
-      rejection_reason?: string | null;
-    }>
+        id?: string | null;
+        name?: string | null;
+        type?: string | null;
+        country?: string | null;
+      }>
     | null;
 }
 
@@ -93,12 +88,12 @@ const normalizeVerificationStatus = (value: string | null | undefined): Recruite
 
 const buildSearchPattern = (value: string) => `%${value.replace(/[%_,]/g, "").trim()}%`;
 
-const classifyDocument = (fileName: string): RecruiterDocument["label"] => {
-  const normalized = fileName.toLowerCase();
-  if (normalized.includes("tax")) return "Tax Certificate";
-  if (normalized.includes("registration")) return "Company Registration";
-  if (normalized.includes("license") || normalized.includes("business")) return "Business License";
-  return "Document";
+const getFileNameFromUrl = (url: string) => {
+  try {
+    return decodeURIComponent(url.split("/").pop() || "Document");
+  } catch {
+    return "Document";
+  }
 };
 
 const fetchAuthLookupByUserIds = async (userIds: string[]) => {
@@ -120,68 +115,6 @@ const fetchAuthLookupByUserIds = async (userIds: string[]) => {
   return lookup;
 };
 
-const listDocumentsAtPath = async (path: string) => {
-  const { data, error } = await supabase.storage
-    .from("recruiter_documents")
-    .list(path, { limit: 50, sortBy: { column: "created_at", order: "desc" } });
-
-  if (error || !Array.isArray(data)) return [];
-
-  return data
-    .filter((item: any) => item?.name && !item.name.endsWith("/"))
-    .map((item: any) => ({
-      fileName: item.name as string,
-      path: path ? `${path}/${item.name}` : item.name,
-    }));
-};
-
-const resolveDocumentUrl = async (path: string) => {
-  const signed = await supabase.storage.from("recruiter_documents").createSignedUrl(path, 60 * 60);
-  if (!signed.error && signed.data?.signedUrl) return signed.data.signedUrl;
-  const publicData = supabase.storage.from("recruiter_documents").getPublicUrl(path);
-  return publicData.data.publicUrl;
-};
-
-const fetchDocumentsMap = async (rows: RecruiterRow[]) => {
-  const map = new Map<string, RecruiterDocument[]>();
-
-  await Promise.all(
-    rows.map(async (row) => {
-      const org = getOrganization(row.organizations);
-      const paths = Array.from(
-        new Set(
-          [row.organization_id || org?.id || null, row.id]
-            .filter(Boolean)
-            .flatMap((base) => [base as string, `${base}/documents`]),
-        ),
-      );
-
-      const uniqueByPath = new Map<string, { fileName: string; path: string }>();
-      await Promise.all(
-        paths.map(async (path) => {
-          const files = await listDocumentsAtPath(path);
-          files.forEach((file) => {
-            uniqueByPath.set(file.path, file);
-          });
-        }),
-      );
-
-      const docs = await Promise.all(
-        Array.from(uniqueByPath.values()).map(async (file) => ({
-          label: classifyDocument(file.fileName),
-          fileName: file.fileName,
-          path: file.path,
-          url: await resolveDocumentUrl(file.path),
-        })),
-      );
-
-      map.set(row.id, docs);
-    }),
-  );
-
-  return map;
-};
-
 const getSearchMatchedOrganizationIds = async (search: string) => {
   const term = search.trim();
   if (!term) return [];
@@ -196,23 +129,21 @@ const getSearchMatchedOrganizationIds = async (search: string) => {
   return data.map((row: any) => row.id).filter(Boolean);
 };
 
-const buildRecruitersQuery = async (
+const buildRecruitersQuery = (
   filters: RecruiterVerificationFilters,
-  includeOptionalOrgFields: boolean,
   matchedOrgIds: string[],
+  includeCountry: boolean,
 ) => {
   const page = Math.max(1, Number(filters.page || 1));
   const limit = Number(filters.limit || ADMIN_RECRUITER_VERIFICATION_PAGE_SIZE);
   const offset = (page - 1) * limit;
   const search = (filters.search || "").trim();
 
-  const orgFields = includeOptionalOrgFields
-    ? "id, name, type, country, verification_status, rejection_reason"
-    : "id, name, type, verification_status";
+  const orgFields = includeCountry ? "id, name, type, country" : "id, name, type";
 
   let query = supabase
     .from("profiles")
-    .select(`id, full_name, role, organization_id, created_at, organizations(${orgFields})`, { count: "exact" })
+    .select(`id, full_name, role, organization_id, verification_status, verification_documents, created_at, organizations(${orgFields})`, { count: "exact" })
     .in("role", ["employer", "agency"]);
 
   if (filters.organizationType && filters.organizationType !== "all") {
@@ -220,7 +151,7 @@ const buildRecruitersQuery = async (
   }
 
   if (filters.status && filters.status !== "all") {
-    query = query.eq("organizations.verification_status", filters.status);
+    query = query.eq("verification_status", filters.status);
   }
 
   if (search) {
@@ -242,23 +173,17 @@ export async function getRecruiterVerification(
   const limit = Number(filters.limit || ADMIN_RECRUITER_VERIFICATION_PAGE_SIZE);
   const matchedOrgIds = await getSearchMatchedOrganizationIds(filters.search || "");
 
-  let response = await buildRecruitersQuery(filters, true, matchedOrgIds);
+  let response = await buildRecruitersQuery(filters, matchedOrgIds, true);
   if (response.error) {
-    response = await buildRecruitersQuery(filters, false, matchedOrgIds);
+    response = await buildRecruitersQuery(filters, matchedOrgIds, false);
   }
-
   if (response.error) throw response.error;
 
   const rows = (response.data || []) as RecruiterRow[];
-  const [authLookup, documentsMap] = await Promise.all([
-    fetchAuthLookupByUserIds(rows.map((row) => row.id)),
-    fetchDocumentsMap(rows),
-  ]);
+  const authLookup = await fetchAuthLookupByUserIds(rows.map((row) => row.id));
 
   const recruiters: AdminRecruiterVerificationItem[] = rows.map((row) => {
     const organization = getOrganization(row.organizations);
-    const verificationStatus = normalizeVerificationStatus(organization?.verification_status);
-    const organizationType = normalizeOrganizationType(organization?.type || row.role);
 
     return {
       recruiter_id: row.id,
@@ -266,11 +191,13 @@ export async function getRecruiterVerification(
       email: authLookup.get(row.id)?.email ?? null,
       organization_id: row.organization_id || organization?.id || null,
       company_name: organization?.name || "Unknown Company",
-      organization_type: organizationType,
+      organization_type: normalizeOrganizationType(organization?.type || row.role),
       country: organization?.country ?? null,
-      verification_status: verificationStatus,
-      rejection_reason: organization?.rejection_reason ?? null,
-      documents: documentsMap.get(row.id) || [],
+      verification_status: normalizeVerificationStatus(row.verification_status),
+      documents: (row.verification_documents || []).map((url) => ({
+        url,
+        fileName: getFileNameFromUrl(url),
+      })),
       created_at: row.created_at,
     };
   });
@@ -288,98 +215,29 @@ export async function getRecruiterVerification(
   };
 }
 
-const notifyRecruiter = async (params: {
+const updateRecruiterVerification = async (params: {
   recruiterId: string;
-  title: string;
-  message: string;
-  type?: string;
+  status: RecruiterVerificationStatus;
 }) => {
-  const { error } = await supabase.from("notifications").insert({
-    user_id: params.recruiterId,
-    title: params.title,
-    message: params.message,
-    type: params.type || "recruiter",
+  const { error } = await supabase.rpc("set_recruiter_verification_status", {
+    p_profile_id: params.recruiterId,
+    p_status: params.status,
   });
 
   if (error) throw error;
 };
 
-const updateOrganizationVerification = async (
-  organizationId: string,
-  updates: { verification_status: RecruiterVerificationStatus; rejection_reason?: string | null },
-) => {
-  let result = await supabase
-    .from("organizations")
-    .update(updates)
-    .eq("id", organizationId);
-
-  if (!result.error) return;
-
-  result = await supabase
-    .from("organizations")
-    .update({ verification_status: updates.verification_status })
-    .eq("id", organizationId);
-
-  if (result.error) throw result.error;
-};
-
-export async function approveRecruiter(params: {
-  organizationId: string | null;
-  recruiterId: string;
-  companyName: string;
-}) {
-  if (!params.organizationId) throw new Error("Organization not found for recruiter.");
-
-  await updateOrganizationVerification(params.organizationId, {
-    verification_status: "verified",
-    rejection_reason: null,
-  });
-
-  await notifyRecruiter({
+export async function approveRecruiter(params: { recruiterId: string }) {
+  await updateRecruiterVerification({
     recruiterId: params.recruiterId,
-    title: "Recruiter Verification Approved",
-    message: `${params.companyName} has been approved as a verified recruiter.`,
-    type: "recruiter",
+    status: "verified",
   });
 }
 
-export async function rejectRecruiter(params: {
-  organizationId: string | null;
-  recruiterId: string;
-  companyName: string;
-  reason?: string;
-}) {
-  if (!params.organizationId) throw new Error("Organization not found for recruiter.");
-
-  await updateOrganizationVerification(params.organizationId, {
-    verification_status: "rejected",
-    rejection_reason: params.reason?.trim() || null,
-  });
-
-  await notifyRecruiter({
+export async function rejectRecruiter(params: { recruiterId: string }) {
+  await updateRecruiterVerification({
     recruiterId: params.recruiterId,
-    title: "Recruiter Verification Rejected",
-    message: params.reason?.trim()
-      ? `Verification for ${params.companyName} was rejected. Reason: ${params.reason.trim()}`
-      : `Verification for ${params.companyName} was rejected.`,
-    type: "recruiter",
-  });
-}
-
-export async function requestAdditionalDocuments(params: {
-  recruiterId: string;
-  companyName: string;
-  message?: string;
-}) {
-  const body = params.message?.trim()
-    ? params.message.trim()
-    : `Please upload additional company verification documents for ${params.companyName}.`;
-
-  await notifyRecruiter({
-    recruiterId: params.recruiterId,
-    title: "Additional Verification Documents Required",
-    message: body,
-    type: "recruiter",
+    status: "rejected",
   });
 }
 
@@ -407,6 +265,7 @@ export function useRecruiterVerification(filters: RecruiterVerificationFilters) 
     mutationFn: approveRecruiter,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-recruiter-verification"] });
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
     },
   });
 
@@ -414,11 +273,8 @@ export function useRecruiterVerification(filters: RecruiterVerificationFilters) 
     mutationFn: rejectRecruiter,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-recruiter-verification"] });
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
     },
-  });
-
-  const requestDocsMutation = useMutation({
-    mutationFn: requestAdditionalDocuments,
   });
 
   return {
@@ -437,9 +293,7 @@ export function useRecruiterVerification(filters: RecruiterVerificationFilters) 
     refetch: recruitersQuery.refetch,
     approveRecruiter: approveMutation.mutateAsync,
     rejectRecruiter: rejectMutation.mutateAsync,
-    requestAdditionalDocuments: requestDocsMutation.mutateAsync,
     isApproving: approveMutation.isPending,
     isRejecting: rejectMutation.isPending,
-    isRequestingDocuments: requestDocsMutation.isPending,
   };
 }

@@ -7,7 +7,7 @@ export const ADMIN_USERS_PAGE_SIZE = 20;
 
 export type AdminUserRole = 'candidate' | 'employer' | 'agency' | 'admin';
 export type AdminUserStatus = 'active' | 'suspended';
-export type AdminUserTypeFilter = 'all' | 'candidates' | 'recruiters' | 'admins';
+export type AdminUserTypeFilter = 'all' | 'candidate' | 'employer' | 'agency' | 'admin';
 
 export interface AdminUser {
     id: string;
@@ -41,11 +41,8 @@ export interface AdminUsersResult {
 export interface AdminUserActivity {
     accountCreated: string | null;
     lastLogin: string | null;
-    jobsPosted: number;
+    loginCount: number;
     applicationsSubmitted: number;
-    interviewsScheduled: number;
-    messagesSent: number;
-    auditEvents: number;
 }
 
 interface ProfileRow {
@@ -81,19 +78,19 @@ const normalizeStatus = (status: string | null | undefined): AdminUserStatus => 
 };
 
 const applyUserTypeFilter = (query: any, userType: AdminUserTypeFilter) => {
-    if (userType === 'candidates') return query.eq('role', 'candidate');
-    if (userType === 'recruiters') return query.in('role', ['employer', 'agency']);
-    if (userType === 'admins') return query.eq('role', 'admin');
+    if (userType === 'candidate') return query.eq('role', 'candidate');
+    if (userType === 'employer') return query.eq('role', 'employer');
+    if (userType === 'agency') return query.eq('role', 'agency');
+    if (userType === 'admin') return query.eq('role', 'admin');
     return query;
 };
 
 const buildSearchPattern = (term: string) => `%${term.replace(/[%_,]/g, '').trim()}%`;
 
-const getSearchMatchedUserIds = async (search: string, userType: AdminUserTypeFilter) => {
+const getSearchMatchedUserIds = async (search: string) => {
     if (!search) return [];
 
     let query = supabase.rpc('get_all_users');
-    query = applyUserTypeFilter(query, userType);
     query = query.ilike('email', buildSearchPattern(search)).limit(300);
 
     const { data, error } = await query;
@@ -143,7 +140,7 @@ export async function getUsers(filters: AdminUsersFilters): Promise<AdminUsersRe
     const status = filters.status || 'all';
     const offset = (page - 1) * limit;
 
-    const searchMatchedIds = await getSearchMatchedUserIds(search, userType);
+    const searchMatchedIds = await getSearchMatchedUserIds(search);
     let query = supabase
         .from('profiles')
         .select(
@@ -215,69 +212,44 @@ export async function getUsers(filters: AdminUsersFilters): Promise<AdminUsersRe
 }
 
 export async function updateUserStatus(userId: string, status: AdminUserStatus) {
-    const { error } = await supabase
-        .from('profiles')
-        .update({ status })
-        .eq('id', userId);
+    const { error } = await supabase.rpc('update_user_status', {
+        p_user_id: userId,
+        p_new_status: status,
+    });
 
     if (error) throw error;
 }
 
 export async function updateUserRole(userId: string, role: AdminUserRole) {
-    const { error } = await supabase
-        .from('profiles')
-        .update({ role })
-        .eq('id', userId);
+    const { error } = await supabase.rpc('update_user_role', {
+        p_user_id: userId,
+        p_new_role: role,
+    });
 
     if (error) throw error;
 }
 
 export async function resetUserPassword(email: string) {
-    const { error } = await supabase.auth.admin.generateLink({
-        type: 'recovery',
-        email,
-    });
-
-    if (!error) return;
-
-    const fallback = await supabase.auth.resetPasswordForEmail(email, {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/login`,
     });
 
-    if (fallback.error) throw error;
+    if (error) throw error;
 }
 
 export async function getUserActivity(userId: string): Promise<AdminUserActivity> {
     const { data: profileRow, error: profileError } = await supabase
         .from('profiles')
-        .select('id, role, organization_id, created_at')
+        .select('id, created_at')
         .eq('id', userId)
         .maybeSingle();
 
     if (profileError) throw profileError;
 
-    const role = normalizeRole(profileRow?.role ?? null);
-    const organizationId = profileRow?.organization_id ?? null;
-
-    const [applicationsRes, interviewsRes, messagesRes, auditsRes] = await Promise.all([
-        supabase.from('applications').select('*', { count: 'exact', head: true }).eq('candidate_id', userId),
-        supabase.from('interviews').select('*', { count: 'exact', head: true }).eq('interviewer_id', userId),
-        supabase.from('messages').select('*', { count: 'exact', head: true }).eq('sender_id', userId),
-        supabase.from('audit_logs').select('*', { count: 'exact', head: true }).eq('user_id', userId),
-    ]);
-
-    const jobsPosted =
-        role === 'employer' || role === 'agency'
-            ? await (async () => {
-                if (!organizationId) return 0;
-                const { count, error } = await supabase
-                    .from('jobs')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('organization_id', organizationId);
-                if (error) return 0;
-                return Number(count || 0);
-            })()
-            : 0;
+    const applicationsRes = await supabase
+        .from('applications')
+        .select('*', { count: 'exact', head: true })
+        .eq('candidate_id', userId);
 
     const authLookup = await fetchAuthLookupByUserIds([userId]);
     const authLastLogin = authLookup.get(userId)?.last_sign_in_at ?? null;
@@ -285,11 +257,8 @@ export async function getUserActivity(userId: string): Promise<AdminUserActivity
     return {
         accountCreated: profileRow?.created_at ?? null,
         lastLogin: authLastLogin,
-        jobsPosted,
+        loginCount: authLastLogin ? 1 : 0,
         applicationsSubmitted: Number(applicationsRes.count || 0),
-        interviewsScheduled: Number(interviewsRes.count || 0),
-        messagesSent: Number(messagesRes.count || 0),
-        auditEvents: Number(auditsRes.count || 0),
     };
 }
 

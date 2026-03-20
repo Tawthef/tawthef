@@ -2,8 +2,10 @@ import { ReactNode, useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Briefcase, Users, FileText, Settings, LogOut, ChevronDown, Bell, Search, Building2, User, ClipboardList, BarChart3, UserCheck, Menu, CreditCard, Calendar, MessageCircle, FolderKanban } from "lucide-react";
+import { LayoutDashboard, Briefcase, Users, FileText, Settings, LogOut, ChevronDown, Bell, Search, Building2, User, ClipboardList, BarChart3, UserCheck, Menu, CreditCard, Calendar, MessageCircle, FolderKanban, KeyRound, ShieldCheck } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import SidebarLogo from "./SidebarLogo";
 import { useProfile } from "@/hooks/useProfile";
 import { useAuth } from "@/context/AuthContext";
@@ -26,7 +28,12 @@ const DashboardLayout = ({ children, role: propRole, userName: propUserName, com
 
   // Use real profile data with fallbacks to props
   const userName = profile?.full_name || propUserName || user?.email?.split('@')[0] || "User";
+  const userAvatar = profile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture || null;
   const role = profile?.role || propRole;
+  const isVerifiedRecruiter =
+    !!profile &&
+    ["employer", "agency"].includes(profile.role) &&
+    profile.verification_status === "verified";
 
   // Close sidebar on route change
   useEffect(() => {
@@ -66,6 +73,7 @@ const DashboardLayout = ({ children, role: propRole, userName: propUserName, com
         return [
           { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
           { name: "Jobs", href: "/dashboard/jobs", icon: Briefcase },
+          { name: "Verification", href: "/dashboard/verification", icon: ShieldCheck },
           { name: "Candidates", href: "/dashboard/candidates", icon: Users },
           { name: "Resume Search", href: "/dashboard/resume-search", icon: Search },
           { name: "Talent Pools", href: "/dashboard/talent-pools", icon: FolderKanban },
@@ -76,6 +84,7 @@ const DashboardLayout = ({ children, role: propRole, userName: propUserName, com
         return [
           { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
           { name: "Client Jobs", href: "/dashboard/jobs", icon: Briefcase },
+          { name: "Verification", href: "/dashboard/verification", icon: ShieldCheck },
           { name: "Candidate Submissions", href: "/dashboard/submissions", icon: ClipboardList },
           { name: "Resume Search", href: "/dashboard/resume-search", icon: Search },
           { name: "Talent Pools", href: "/dashboard/talent-pools", icon: FolderKanban },
@@ -98,6 +107,7 @@ const DashboardLayout = ({ children, role: propRole, userName: propUserName, com
           { name: "Platform Settings", href: "/dashboard/admin/settings", icon: Settings },
           { name: "Jobs Management", href: "/dashboard/admin/jobs", icon: Briefcase },
           { name: "Subscriptions", href: "/dashboard/admin/subscriptions", icon: CreditCard },
+          { name: "Invite Codes", href: "/dashboard/admin/invite-codes", icon: KeyRound },
           { name: "Analytics", href: "/dashboard/admin/analytics", icon: BarChart3 },
           { name: "Audit Logs", href: "/dashboard/admin/audit", icon: FileText },
         ];
@@ -127,12 +137,20 @@ const DashboardLayout = ({ children, role: propRole, userName: propUserName, com
       </nav>
       <div className="p-4 lg:p-6 border-t border-sidebar-border/30">
         <div className="flex items-center gap-3 lg:gap-4 px-2 lg:px-3">
-          <div className="w-10 lg:w-12 h-10 lg:h-12 rounded-xl bg-gradient-to-br from-sidebar-primary to-sidebar-primary/70 flex items-center justify-center shadow-lg shadow-sidebar-primary/30">
-            <span className="text-xs lg:text-sm font-semibold text-sidebar-primary-foreground">{userInitials}</span>
-          </div>
+          <Avatar className="w-10 lg:w-12 h-10 lg:h-12 rounded-xl shadow-lg shadow-sidebar-primary/30">
+            {userAvatar ? <AvatarImage src={userAvatar} alt={userName} /> : null}
+            <AvatarFallback className="rounded-xl bg-gradient-to-br from-sidebar-primary to-sidebar-primary/70 text-xs lg:text-sm font-semibold text-sidebar-primary-foreground">
+              {userInitials}
+            </AvatarFallback>
+          </Avatar>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-sidebar-foreground truncate">{isLoading ? "Loading..." : userName}</p>
             <p className="text-xs text-sidebar-foreground/40 truncate font-light">{getRoleLabel()}</p>
+            {isVerifiedRecruiter && (
+              <Badge variant="outline" className="mt-2 border-success/20 bg-success/10 text-success">
+                Verified Recruiter
+              </Badge>
+            )}
           </div>
         </div>
       </div>
@@ -179,9 +197,12 @@ const DashboardLayout = ({ children, role: propRole, userName: propUserName, com
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-2 lg:gap-3 h-10 lg:h-12 px-2 lg:px-4 rounded-xl">
-                  <div className="w-8 lg:w-10 h-8 lg:h-10 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-sm">
-                    <span className="text-xs font-semibold text-primary-foreground">{userInitials}</span>
-                  </div>
+                  <Avatar className="w-8 lg:w-10 h-8 lg:h-10 rounded-xl shadow-sm">
+                    {userAvatar ? <AvatarImage src={userAvatar} alt={userName} /> : null}
+                    <AvatarFallback className="rounded-xl bg-gradient-to-br from-primary to-primary/70 text-xs font-semibold text-primary-foreground">
+                      {userInitials}
+                    </AvatarFallback>
+                  </Avatar>
                   <span className="hidden sm:block text-sm font-medium">{isLoading ? "Loading..." : userName}</span>
                   <ChevronDown className="w-4 h-4 text-muted-foreground hidden sm:block" />
                 </Button>

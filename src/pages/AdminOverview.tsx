@@ -38,9 +38,52 @@ const formatPlan = (value: string) =>
 
 const formatNumber = (value: number) => value.toLocaleString("en-US");
 
+const TopActivityCard = ({
+  title,
+  rows,
+  label,
+  isLoading,
+}: {
+  title: string;
+  rows: Array<{ id: string; name: string; count: number }>;
+  label: string;
+  isLoading: boolean;
+}) => (
+  <Card className="card-dashboard">
+    <CardHeader className="pb-4">
+      <CardTitle className="text-lg font-semibold">{title}</CardTitle>
+    </CardHeader>
+    <CardContent>
+      {isLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <div key={index} className="flex items-center justify-between gap-3">
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-6 w-24 rounded-full" />
+            </div>
+          ))}
+        </div>
+      ) : rows.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-10">No activity data available yet.</p>
+      ) : (
+        <div className="space-y-3">
+          {rows.map((row) => (
+            <div key={row.id} className="flex items-center justify-between gap-3 rounded-xl border border-border/20 px-4 py-3">
+              <p className="text-sm font-medium truncate">{row.name}</p>
+              <Badge variant="outline" className="whitespace-nowrap">
+                {formatNumber(row.count)} {label}
+              </Badge>
+            </div>
+          ))}
+        </div>
+      )}
+    </CardContent>
+  </Card>
+);
+
 const AdminOverview = () => {
   const { profile } = useProfile();
-  const { data, isLoading, error, activity, isActivityLoading, activityError, kpisError } = useAdminDashboard();
+  const { data, isLoading, error, activity, isActivityLoading, activityError, kpis, kpisError } = useAdminDashboard();
   const {
     totalCandidates,
     totalRecruiters,
@@ -66,7 +109,7 @@ const AdminOverview = () => {
             <Skeleton className="h-9 w-72" />
             <Skeleton className="h-5 w-96" />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
             {Array.from({ length: 6 }).map((_, index) => (
               <DashboardStatCardSkeleton key={index} />
             ))}
@@ -117,43 +160,49 @@ const AdminOverview = () => {
       title: "Total Candidates",
       value: formatNumber(totalCandidates),
       icon: Users,
-      trendText: "Registered job seekers",
-      trendTone: "neutral" as const,
+      trend: kpis?.newCandidatesToday ?? 0,
+      trendLabel: "today",
+      trendDirection: "up" as const,
     },
     {
       title: "Total Recruiters",
       value: formatNumber(totalRecruiters),
       icon: UserRoundCog,
-      trendText: "Employers and agencies",
-      trendTone: "neutral" as const,
+      trend: kpis?.newRecruitersThisWeek ?? 0,
+      trendLabel: "this week",
+      trendDirection: "up" as const,
     },
     {
       title: "Active Job Postings",
       value: formatNumber(activeJobs),
       icon: Briefcase,
-      trendText: "Jobs with open status",
-      trendTone: "neutral" as const,
+      trend: kpis?.jobsPostedThisWeek ?? 0,
+      trendLabel: "this week",
+      trendDirection: "up" as const,
     },
     {
       title: "Applications Submitted",
       value: formatNumber(totalApplications),
       icon: FileText,
-      trendText: "Total applications on platform",
-      trendTone: "neutral" as const,
+      trend: kpis?.applicationsThisWeek ?? 0,
+      trendLabel: "this week",
+      trendDirection: "up" as const,
     },
     {
       title: "New User Registrations",
       value: formatNumber(newRegistrations),
       icon: UserPlus,
-      trendText: "Last 30 days",
-      trendTone: "up" as const,
+      trend: newRegistrations,
+      trendLabel: "last 30 days",
+      trendDirection: "up" as const,
     },
     {
       title: "Subscription Summary",
       value: formatNumber(totalSubscriptions),
       icon: CreditCard,
-      trendText: `Active: ${formatNumber(subscriptionSummary.active)}  Trial: ${formatNumber(subscriptionSummary.trial)}  Expired: ${formatNumber(subscriptionSummary.expired)}`,
-      trendTone: "neutral" as const,
+      trend: subscriptionSummary.expired,
+      trendLabel: "expired",
+      trendDirection: subscriptionSummary.expired > 0 ? "down" as const : "neutral" as const,
     },
   ];
 
@@ -167,10 +216,41 @@ const AdminOverview = () => {
           </p>
         </section>
 
-        <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        <section className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
           {isMetricsLoading
             ? Array.from({ length: 6 }).map((_, index) => <DashboardStatCardSkeleton key={index} />)
             : kpiCards.map((card) => <DashboardStatCard key={card.title} {...card} />)}
+        </section>
+
+        <section className="space-y-4">
+          <div className="space-y-1">
+            <h2 className="text-xl font-semibold tracking-tight">Top Activity</h2>
+            <p className="text-sm text-muted-foreground">
+              See who is driving the most candidate and recruiter activity right now.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <TopActivityCard
+              title="Most Active Candidates"
+              rows={(data.mostActiveCandidates || []).map((candidate) => ({
+                id: candidate.id,
+                name: candidate.name,
+                count: candidate.applications_count,
+              }))}
+              label="applications"
+              isLoading={isLoading}
+            />
+            <TopActivityCard
+              title="Most Active Recruiters"
+              rows={(data.mostActiveRecruiters || []).map((recruiter) => ({
+                id: recruiter.id,
+                name: recruiter.name,
+                count: recruiter.jobs_count,
+              }))}
+              label="jobs"
+              isLoading={isLoading}
+            />
+          </div>
         </section>
 
         <section>

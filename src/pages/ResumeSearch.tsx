@@ -13,9 +13,10 @@ import { useProfile } from "@/hooks/useProfile";
 import { useJobs } from "@/hooks/useJobs";
 import { useResumeSearch } from "@/hooks/useResumeSearch";
 import { useTalentPoolActions, useTalentPools } from "@/hooks/useTalentPools";
+import RecruiterVerificationBanner from "@/components/recruiter/RecruiterVerificationBanner";
 import { supabase } from "@/lib/supabase";
 import { Briefcase, ChevronLeft, ChevronRight, Loader2, Search, Sparkles, UserPlus } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const PAGE_SIZE = 10;
 
@@ -55,6 +56,9 @@ const ResumeSearch = () => {
   const [actionCandidateId, setActionCandidateId] = useState<string | null>(null);
 
   const { data: candidates = [], isLoading } = useResumeSearch(filters);
+  const recruiterRestricted =
+    (profile?.role === "employer" || profile?.role === "agency") &&
+    profile?.verification_status !== "verified";
 
   const availableJobs = useMemo(
     () => jobs.filter((job) => job.status === "open"),
@@ -197,12 +201,27 @@ const ResumeSearch = () => {
   return (
     <DashboardLayout>
       <div className="space-y-8">
+        <RecruiterVerificationBanner />
+
         <div className="space-y-2">
           <h1 className="text-3xl lg:text-4xl font-bold tracking-tight">Resume Search</h1>
           <p className="text-muted-foreground">
             Search candidate CVs by skills, keywords, and experience.
           </p>
         </div>
+
+        {recruiterRestricted ? (
+          <Card className="border-warning/30 bg-warning/5">
+            <CardContent className="p-8 space-y-4">
+              <p className="font-semibold text-foreground">Resume search is disabled until recruiter verification is approved.</p>
+              <p className="text-sm text-muted-foreground">Your account is under review</p>
+              <Button asChild>
+                <Link to="/dashboard/verification">Open Verification</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
 
         <Card className="card-float border-0">
           <CardHeader>
@@ -446,6 +465,8 @@ const ResumeSearch = () => {
               No open jobs found for your recruiter account. Create/open a job to enable invite and shortlist actions.
             </CardContent>
           </Card>
+        )}
+          </>
         )}
       </div>
     </DashboardLayout>

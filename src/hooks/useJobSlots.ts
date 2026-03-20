@@ -6,7 +6,7 @@ import { useCheckSubscription } from './useSubscription';
 
 /**
  * Hook to manage job posting slots via server-side RPC enforcement.
- * Checks both job_slot_basic and job_slot_pro plans.
+ * Checks paid and invite-backed job slot plans.
  */
 export function useJobSlots() {
     const { profile } = useProfile();
@@ -16,12 +16,25 @@ export function useJobSlots() {
     const { check: basicCheck, isLoading: basicLoading } = useCheckSubscription('job_slot_basic');
     // Check pro plan
     const { check: proCheck, isLoading: proLoading } = useCheckSubscription('job_slot_pro');
+    // Check invite plan
+    const { check: inviteCheck, isLoading: inviteLoading } = useCheckSubscription('job_slot_invite');
+    // Check full access invite plan
+    const { check: fullAccessCheck, isLoading: fullAccessLoading } = useCheckSubscription('full_access');
 
     // Combine: user has slots if either plan is valid with remaining usage
-    const isLoading = basicLoading || proLoading;
-    const hasAvailableSlots = basicCheck.is_valid || proCheck.is_valid;
-    const remainingSlots = basicCheck.remaining_usage + proCheck.remaining_usage;
-    const remainingDays = Math.max(basicCheck.remaining_days, proCheck.remaining_days);
+    const isLoading = basicLoading || proLoading || inviteLoading || fullAccessLoading;
+    const hasAvailableSlots = basicCheck.is_valid || proCheck.is_valid || inviteCheck.is_valid || fullAccessCheck.is_valid;
+    const remainingSlots =
+        basicCheck.remaining_usage +
+        proCheck.remaining_usage +
+        inviteCheck.remaining_usage +
+        fullAccessCheck.remaining_usage;
+    const remainingDays = Math.max(
+        basicCheck.remaining_days,
+        proCheck.remaining_days,
+        inviteCheck.remaining_days,
+        fullAccessCheck.remaining_days,
+    );
 
     // Mutation to consume a slot via RPC
     const consumeMutation = useMutation({

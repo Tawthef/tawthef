@@ -24,13 +24,30 @@ const getDaysRemaining = (endDate: string) => {
     return diff > 0 ? diff : 0;
 };
 
+const getSubscriptionName = (subscription: ReturnType<typeof useSubscription>["subscriptions"][number]) => {
+    if (subscription.plans?.name) return subscription.plans.name;
+    if (subscription.plan_type === "full_access") return "Full Access Invite";
+    if (subscription.plan_type === "job_slot_invite") return "Invite Job Slots";
+    if (subscription.plan_type === "resume_search") return "Resume Search Access";
+    if (subscription.plan_type === "job_slot_basic") return "Single Job Slot";
+    if (subscription.plan_type === "job_slot_pro") return "10 Job Slots";
+    return "Subscription";
+};
+
 const Billing = () => {
     const { subscriptions, isLoading } = useSubscription();
     const { hasAvailableSlots, remainingSlots } = useJobSlots();
     const { hasResumeAccess } = useResumeAccess();
 
-    const jobPostingSubscription = subscriptions.find(sub => sub.plans?.type === 'job_posting');
-    const resumeSubscription = subscriptions.find(sub => sub.plans?.type === 'resume_access');
+    const jobPostingSubscription = subscriptions.find(
+        (sub) =>
+            sub.plans?.type === "job_posting" ||
+            ["job_slot_basic", "job_slot_pro", "job_slot_invite", "full_access"].includes(sub.plan_type || ""),
+    );
+    const resumeSubscription = subscriptions.find(
+        (sub) => sub.plans?.type === "resume_access" || ["resume_search", "full_access"].includes(sub.plan_type || ""),
+    );
+    const jobSlotCapacity = jobPostingSubscription?.usage_limit || jobPostingSubscription?.plans?.job_slots || 0;
 
     if (isLoading) {
         return (
@@ -86,7 +103,7 @@ const Billing = () => {
                                     <div className="flex items-start justify-between">
                                         <div>
                                             <CardTitle className="text-lg font-semibold">
-                                                {jobPostingSubscription.plans.name}
+                                                {getSubscriptionName(jobPostingSubscription)}
                                             </CardTitle>
                                             <p className="text-sm text-muted-foreground mt-1">
                                                 Expires {formatDate(jobPostingSubscription.end_date)}
@@ -103,13 +120,13 @@ const Billing = () => {
                                         <div className="flex justify-between text-sm mb-2">
                                             <span className="font-medium text-foreground">Job Slots</span>
                                             <span className="text-muted-foreground">
-                                                {remainingSlots} / {jobPostingSubscription.plans.job_slots} remaining
+                                                {remainingSlots} / {jobSlotCapacity} remaining
                                             </span>
                                         </div>
                                         <Progress
                                             value={
-                                                jobPostingSubscription.plans.job_slots > 0
-                                                    ? (remainingSlots / jobPostingSubscription.plans.job_slots) * 100
+                                                jobSlotCapacity > 0
+                                                    ? (remainingSlots / jobSlotCapacity) * 100
                                                     : 0
                                             }
                                             className="h-2"
@@ -143,7 +160,7 @@ const Billing = () => {
                                     <div className="flex items-start justify-between">
                                         <div>
                                             <CardTitle className="text-lg font-semibold">
-                                                {resumeSubscription.plans.name}
+                                                {getSubscriptionName(resumeSubscription)}
                                             </CardTitle>
                                             <p className="text-sm text-muted-foreground mt-1">
                                                 Expires {formatDate(resumeSubscription.end_date)}

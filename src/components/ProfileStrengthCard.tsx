@@ -13,11 +13,11 @@ interface ProfileStrengthCardProps {
 }
 
 const SECTION_LABELS: Record<ProfileStrengthSection, string> = {
-  personal_info: "Personal information",
-  skills: "Skills",
-  experience: "Experience",
-  education: "Education",
-  cv_uploaded: "CV uploaded",
+  personal_info: "Complete personal information",
+  skills: "Add skills",
+  experience: "Add work experience",
+  education: "Add education",
+  cv_uploaded: "Upload CV",
 };
 
 const getTone = (percentage: number) => {
@@ -87,20 +87,25 @@ const ProfileStrengthCard = ({
             </div>
 
             <div className="space-y-2">
-              <p className="text-sm font-medium text-foreground">Missing Sections</p>
+              <p className="text-sm font-medium text-foreground">Suggested Next Steps</p>
               {missingSections.length === 0 ? (
                 <div className="flex items-center gap-2 text-sm text-success">
                   <CheckCircle className="w-4 h-4" />
                   All profile sections are complete.
                 </div>
               ) : (
-                <ul className="space-y-1.5">
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    Complete your profile to improve job matching.
+                  </p>
+                  <ul className="space-y-1.5">
                   {missingSections.map((section) => (
                     <li key={section} className="text-sm text-muted-foreground">
                       - {SECTION_LABELS[section]}
                     </li>
                   ))}
-                </ul>
+                  </ul>
+                </div>
               )}
             </div>
           </>

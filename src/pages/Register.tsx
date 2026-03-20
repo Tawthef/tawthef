@@ -4,14 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Eye, EyeOff, Mail, Lock, User, Building2, Users, Briefcase, ArrowRight, CheckCircle } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User, Building2, Users, Briefcase, ArrowRight, CheckCircle, Chrome, AppWindow } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase";
+import { clearWelcomeShareContext, saveWelcomeShareContext } from "@/lib/welcomeShare";
 import logo from "@/assets/tawthef-logo-en.png";
 
 type UserRole = "candidate" | "agency" | "employer";
 type InitialRole = "candidate" | "recruiter";
 type RecruiterType = "employer" | "agency";
+const OAUTH_ROLE_STORAGE_KEY = "tawthef:pending-oauth-role";
 
 const Register = () => {
   const navigate = useNavigate();
@@ -19,10 +22,11 @@ const Register = () => {
   const [step, setStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState<"google" | "azure" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [initialRole, setInitialRole] = useState<InitialRole | null>(null);
   const [recruiterType, setRecruiterType] = useState<RecruiterType | null>(null);
-  const [formData, setFormData] = useState({ fullName: "", email: "", password: "", companyName: "" });
+  const [formData, setFormData] = useState({ fullName: "", email: "", password: "", companyName: "", inviteCode: "" });
 
   // Get final role for backend
   const getFinalRole = (): UserRole => {
@@ -40,6 +44,31 @@ const Register = () => {
     { id: "employer" as RecruiterType, title: "Employer", description: "Hiring for my own company", icon: Building2, color: "from-primary/15 to-primary/5" },
     { id: "agency" as RecruiterType, title: "Recruitment Agency", description: "Placing candidates for clients", icon: Briefcase, color: "from-accent/15 to-accent/5" },
   ];
+
+  const handleOAuthSignIn = async (provider: "google" | "azure") => {
+    setError(null);
+    setOauthLoading(provider);
+    window.sessionStorage.setItem(OAUTH_ROLE_STORAGE_KEY, "candidate");
+    saveWelcomeShareContext({
+      role: "candidate",
+      fullName: formData.fullName || undefined,
+      createdAt: new Date().toISOString(),
+    });
+
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}/welcome/share`,
+      },
+    });
+
+    if (oauthError) {
+      window.sessionStorage.removeItem(OAUTH_ROLE_STORAGE_KEY);
+      clearWelcomeShareContext();
+      setError(oauthError.message || "Unable to continue with social login.");
+      setOauthLoading(null);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,11 +93,43 @@ const Register = () => {
     setError(null);
 
     try {
+      const finalRole = getFinalRole();
+      const normalizedInviteCode = formData.inviteCode.trim().toUpperCase();
+
+      if (initialRole === "recruiter" && normalizedInviteCode) {
+        const { data, error: inviteError } = await supabase.rpc("validate_invite_code", {
+          p_code: normalizedInviteCode,
+          p_role: finalRole,
+        });
+
+        if (inviteError) {
+          setError(inviteError.message || "Unable to validate invite code.");
+          setIsLoading(false);
+          return;
+        }
+
+        const validation = Array.isArray(data) ? data[0] : data;
+        if (!validation?.is_valid) {
+          setError("Invalid or expired invite code");
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      saveWelcomeShareContext({
+        role: finalRole,
+        fullName: formData.fullName || undefined,
+        companyName: formData.companyName || undefined,
+        inviteCodeApplied: initialRole === "recruiter" && !!normalizedInviteCode,
+        createdAt: new Date().toISOString(),
+      });
+
       // Call Supabase signup with metadata
       const { error: authError } = await signUp(formData.email, formData.password, {
         full_name: formData.fullName,
-        role: getFinalRole(), // 'candidate' | 'employer' | 'agency'
+        role: finalRole, // 'candidate' | 'employer' | 'agency'
         company_name: formData.companyName, // For trigger to create organization
+        invite_code: initialRole === "recruiter" ? normalizedInviteCode : undefined,
       });
 
       if (authError) {
@@ -80,15 +141,15 @@ const Register = () => {
         } else {
           setError('Something went wrong. Please try again.');
         }
+        clearWelcomeShareContext();
         setIsLoading(false);
         return;
       }
 
-      // Success - navigate to dashboard
-      // Note: Profile creation will be added in Phase 4
-      navigate("/dashboard");
+      navigate("/welcome/share");
     } catch (caughtError: any) {
       console.error('[Auth] Register error:', caughtError);
+      clearWelcomeShareContext();
       setError(caughtError?.message || 'Unable to create account. Please try again.');
       setIsLoading(false);
     }
@@ -259,6 +320,43 @@ const Register = () => {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-5">
+                {initialRole === "candidate" && (
+                  <div className="space-y-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full h-11 rounded-lg border-border/40 bg-white text-foreground hover:bg-muted/20"
+                      disabled={isLoading || oauthLoading !== null}
+                      onClick={() => handleOAuthSignIn("google")}
+                    >
+                      <Chrome className="w-4 h-4 mr-2" />
+                      {oauthLoading === "google" ? "Connecting..." : "Continue with Google"}
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full h-11 rounded-lg border-border/40 bg-muted/20 text-foreground hover:bg-muted/40"
+                      disabled={isLoading || oauthLoading !== null}
+                      onClick={() => handleOAuthSignIn("azure")}
+                    >
+                      <AppWindow className="w-4 h-4 mr-2" />
+                      {oauthLoading === "azure" ? "Connecting..." : "Continue with Microsoft"}
+                    </Button>
+
+                    <div className="relative py-1">
+                      <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-border/40" />
+                      </div>
+                      <div className="relative flex justify-center">
+                        <span className="bg-background px-3 text-xs text-muted-foreground uppercase tracking-wide">
+                          Continue with Email
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-1.5">
                   <Label htmlFor="fullName" className="text-sm font-medium text-foreground/80">Full Name</Label>
                   <div className="relative">
@@ -276,23 +374,42 @@ const Register = () => {
                 </div>
 
                 {initialRole === "recruiter" && (
-                  <div className="space-y-1.5">
-                    <Label htmlFor="companyName" className="text-sm font-medium text-foreground/80">
-                      {recruiterType === "agency" ? "Agency Name" : "Company Name"}
-                    </Label>
-                    <div className="relative">
-                      <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60" />
-                      <Input
-                        id="companyName"
-                        type="text"
-                        placeholder={recruiterType === "agency" ? "Acme Recruiting" : "Acme Corporation"}
-                        className="pl-10 h-11 rounded-lg border-border/40 text-sm focus:border-primary/50 focus:ring-primary/20 transition-all"
-                        value={formData.companyName}
-                        onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                        required
-                      />
+                  <>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="companyName" className="text-sm font-medium text-foreground/80">
+                        {recruiterType === "agency" ? "Agency Name" : "Company Name"}
+                      </Label>
+                      <div className="relative">
+                        <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60" />
+                        <Input
+                          id="companyName"
+                          type="text"
+                          placeholder={recruiterType === "agency" ? "Acme Recruiting" : "Acme Corporation"}
+                          className="pl-10 h-11 rounded-lg border-border/40 text-sm focus:border-primary/50 focus:ring-primary/20 transition-all"
+                          value={formData.companyName}
+                          onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                          required
+                        />
+                      </div>
                     </div>
-                  </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="inviteCode" className="text-sm font-medium text-foreground/80">
+                        Invite Code (optional)
+                      </Label>
+                      <Input
+                        id="inviteCode"
+                        type="text"
+                        placeholder="TAWTHEFLAUNCH2026"
+                        className="h-11 rounded-lg border-border/40 text-sm uppercase focus:border-primary/50 focus:ring-primary/20 transition-all"
+                        value={formData.inviteCode}
+                        onChange={(e) => setFormData({ ...formData, inviteCode: e.target.value.toUpperCase() })}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Recruiter-only invite codes can unlock free job slots or temporary package access.
+                      </p>
+                    </div>
+                  </>
                 )}
 
                 <div className="space-y-1.5">
@@ -345,7 +462,7 @@ const Register = () => {
                   <Button
                     type="submit"
                     className="w-full h-10 text-sm rounded-md font-semibold shadow-sm"
-                    disabled={isLoading}
+                    disabled={isLoading || oauthLoading !== null}
                   >
                     {isLoading ? "Creating account..." : "Create account"}
                   </Button>

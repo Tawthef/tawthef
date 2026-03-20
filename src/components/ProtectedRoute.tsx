@@ -15,6 +15,12 @@ const ProtectedRoute = () => {
     const { user, loading } = useAuth();
     const { profile, isLoading: profileLoading } = useProfile();
     const location = useLocation();
+    const shouldRedirectToShareBanner =
+        location.pathname !== '/welcome/share' &&
+        location.pathname !== '/account/setup' &&
+        !!profile?.role &&
+        ['candidate', 'employer', 'agency'].includes(profile.role) &&
+        profile.share_banner_shown === false;
 
     // Wait for auth and profile to initialize
     if (loading || profileLoading) {
@@ -36,6 +42,10 @@ const ProtectedRoute = () => {
         if (!profile || !profile.role || !['candidate', 'employer', 'agency', 'admin'].includes(profile.role)) {
             return <Navigate to="/account/setup" replace />;
         }
+    }
+
+    if (shouldRedirectToShareBanner) {
+        return <Navigate to="/welcome/share" replace />;
     }
 
     // Render protected content

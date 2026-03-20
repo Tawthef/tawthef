@@ -3,13 +3,20 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 
 export type UserRole = 'candidate' | 'employer' | 'agency' | 'admin' | 'expert';
+export type RecruiterVerificationStatus = 'pending' | 'verified' | 'rejected';
 
 
 export interface Profile {
     id: string;
     full_name: string | null;
+    email: string | null;
+    avatar_url: string | null;
     role: UserRole;
     organization_id: string | null;
+    verification_status?: RecruiterVerificationStatus | null;
+    verification_documents?: string[] | null;
+    share_banner_shown: boolean | null;
+    status?: string | null;
     created_at: string;
 }
 
@@ -36,7 +43,11 @@ export function useProfile() {
                 return null;
             }
 
-            return data as Profile;
+            const row = data as Profile;
+            return {
+                ...row,
+                verification_documents: row.verification_documents || [],
+            };
         },
         enabled: !!user, // Only run when user is logged in
         staleTime: 5 * 60 * 1000, // Cache for 5 minutes
@@ -55,6 +66,7 @@ export function useProfile() {
             queryClient.invalidateQueries({ queryKey: ['profile', user.id] });
             queryClient.invalidateQueries({ queryKey: ['profile-strength', user.id] });
             queryClient.invalidateQueries({ queryKey: ['candidate-stats', user.id] });
+            queryClient.invalidateQueries({ queryKey: ['admin-recruiter-verification'] });
         }
 
         return { error };

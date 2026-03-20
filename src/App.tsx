@@ -41,6 +41,7 @@ import AdminUsers from "./pages/admin/AdminUsers";
 import AdminOrganizations from "./pages/admin/AdminOrganizations";
 import AdminJobs from "./pages/admin/AdminJobs";
 import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
+import AdminInviteCodes from "./pages/admin/AdminInviteCodes";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminAuditLogs from "./pages/admin/AdminAuditLogs";
 import AdminRecruiterVerification from "./pages/admin/AdminRecruiterVerification";
@@ -57,6 +58,9 @@ import CandidateProfilePage from "./pages/CandidateProfilePage";
 import PublicJobs from "./pages/PublicJobs";
 import PublicJobDetails from "./pages/PublicJobDetails";
 import JobPipeline from "./pages/JobPipeline";
+import WelcomeShare from "./pages/WelcomeShare";
+import RecruiterVerification from "./pages/RecruiterVerification";
+import BannerPreviewDemo from "./pages/BannerPreviewDemo";
 
 const queryClient = new QueryClient();
 
@@ -79,6 +83,7 @@ const App = () => (
           <Route path="/cookie-policy" element={<CookiePolicy />} />
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/payment/cancel" element={<PaymentCancel />} />
+          <Route path="/preview/share" element={<BannerPreviewDemo />} />
 
           {/* Protected routes - require authentication */}
           {/* Base Protected Routes (Authenticated & Profile exists) */}
@@ -89,6 +94,10 @@ const App = () => (
             <Route element={<RoleProtectedRoute allowedRoles={['candidate', 'employer', 'agency', 'admin', 'expert']} />}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/dashboard/settings" element={<Settings />} />
+            </Route>
+
+            <Route element={<RoleProtectedRoute allowedRoles={['candidate', 'employer', 'agency']} />}>
+              <Route path="/welcome/share" element={<WelcomeShare />} />
             </Route>
 
             <Route element={<RoleProtectedRoute allowedRoles={['candidate', 'employer', 'agency', 'admin']} />}>
@@ -132,6 +141,10 @@ const App = () => (
               <Route path="/dashboard/analytics" element={<Analytics />} />
             </Route>
 
+            <Route element={<RoleProtectedRoute allowedRoles={['employer', 'agency']} />}>
+              <Route path="/dashboard/verification" element={<RecruiterVerification />} />
+            </Route>
+
             {/* Employer Only */}
             <Route element={<RoleProtectedRoute allowedRoles={['employer']} />}>
               <Route path="/dashboard/rankings" element={<RankedCandidates />} />
@@ -164,6 +177,7 @@ const App = () => (
               <Route path="/dashboard/admin/organizations" element={<AdminOrganizations />} />
               <Route path="/dashboard/admin/jobs" element={<AdminJobs />} />
               <Route path="/dashboard/admin/subscriptions" element={<AdminSubscriptions />} />
+              <Route path="/dashboard/admin/invite-codes" element={<AdminInviteCodes />} />
               <Route path="/dashboard/admin/analytics" element={<AdminAnalytics />} />
               <Route path="/dashboard/admin/audit" element={<AdminAuditLogs />} />
               <Route path="/dashboard/admin/recruiter-verification" element={<AdminRecruiterVerification />} />

@@ -79,6 +79,8 @@ const normalizeBillingCycle = (value: string | null | undefined, startDate: stri
 const normalizePlanName = (planType: string | null | undefined) => {
     if (planType === 'job_slot_basic') return 'Single Job Slot';
     if (planType === 'job_slot_pro') return '10 Job Slots';
+    if (planType === 'job_slot_invite') return 'Invite Job Slots';
+    if (planType === 'full_access') return 'Full Access Invite';
     if (planType === 'resume_search') return 'Resume Search Access';
     return 'Unknown Plan';
 };
@@ -100,6 +102,8 @@ const getPostingSlots = (row: SubscriptionRow) => {
     if (typeof row.remaining_slots === 'number') return row.remaining_slots;
     if (row.plan_type === 'job_slot_basic') return 1;
     if (row.plan_type === 'job_slot_pro') return 10;
+    if (row.plan_type === 'job_slot_invite') return 0;
+    if (row.plan_type === 'full_access') return 10;
     return 0;
 };
 
@@ -211,7 +215,7 @@ export async function getSubscriptions(filters: AdminSubscriptionsFilters): Prom
         plan_name: normalizePlanName(row.plan_type),
         plan_type: row.plan_type || null,
         job_posting_slots: getPostingSlots(row),
-        resume_search_access: row.plan_type === 'resume_search',
+        resume_search_access: row.plan_type === 'resume_search' || row.plan_type === 'full_access',
         billing_cycle: normalizeBillingCycle(row.billing_cycle, row.start_date, row.end_date),
         status: normalizeStatus(row),
         start_date: row.start_date || null,

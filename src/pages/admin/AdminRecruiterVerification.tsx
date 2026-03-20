@@ -1,21 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
-import {
-  CheckCircle2,
-  FileCheck2,
-  FileText,
-  Loader2,
-  MoreHorizontal,
-  Search,
-  Shield,
-  XCircle,
-} from "lucide-react";
+import { CheckCircle2, FileText, Loader2, Search, Shield, XCircle } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useProfile } from "@/hooks/useProfile";
 import { useToast } from "@/hooks/use-toast";
 import {
   ADMIN_RECRUITER_VERIFICATION_PAGE_SIZE,
-  AdminRecruiterVerificationItem,
   RecruiterOrganizationType,
   RecruiterVerificationStatus,
   useRecruiterVerification,
@@ -23,19 +13,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -94,12 +71,6 @@ const AdminRecruiterVerification = () => {
   const [statusFilter, setStatusFilter] = useState<"all" | RecruiterVerificationStatus>("all");
   const [organizationTypeFilter, setOrganizationTypeFilter] = useState<"all" | RecruiterOrganizationType>("all");
 
-  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-  const [requestDocsDialogOpen, setRequestDocsDialogOpen] = useState(false);
-  const [selectedRecruiter, setSelectedRecruiter] = useState<AdminRecruiterVerificationItem | null>(null);
-  const [rejectionReason, setRejectionReason] = useState("");
-  const [additionalDocsMessage, setAdditionalDocsMessage] = useState("");
-
   const {
     recruiters,
     pagination,
@@ -108,10 +79,8 @@ const AdminRecruiterVerification = () => {
     error,
     approveRecruiter,
     rejectRecruiter,
-    requestAdditionalDocuments,
     isApproving,
     isRejecting,
-    isRequestingDocuments,
   } = useRecruiterVerification({
     page,
     limit: ADMIN_RECRUITER_VERIFICATION_PAGE_SIZE,
@@ -140,16 +109,12 @@ const AdminRecruiterVerification = () => {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const handleApprove = async (recruiter: AdminRecruiterVerificationItem) => {
+  const handleApprove = async (recruiterId: string, companyName: string) => {
     try {
-      await approveRecruiter({
-        organizationId: recruiter.organization_id,
-        recruiterId: recruiter.recruiter_id,
-        companyName: recruiter.company_name,
-      });
+      await approveRecruiter({ recruiterId });
       toast({
         title: "Recruiter approved",
-        description: `${recruiter.company_name} has been verified.`,
+        description: `${companyName} has been verified.`,
       });
     } catch (approveError: any) {
       toast({
@@ -160,64 +125,17 @@ const AdminRecruiterVerification = () => {
     }
   };
 
-  const openRejectDialog = (recruiter: AdminRecruiterVerificationItem) => {
-    setSelectedRecruiter(recruiter);
-    setRejectionReason(recruiter.rejection_reason || "");
-    setRejectDialogOpen(true);
-  };
-
-  const runReject = async () => {
-    if (!selectedRecruiter) return;
-
+  const handleReject = async (recruiterId: string, companyName: string) => {
     try {
-      await rejectRecruiter({
-        organizationId: selectedRecruiter.organization_id,
-        recruiterId: selectedRecruiter.recruiter_id,
-        companyName: selectedRecruiter.company_name,
-        reason: rejectionReason,
-      });
+      await rejectRecruiter({ recruiterId });
       toast({
         title: "Recruiter rejected",
-        description: `${selectedRecruiter.company_name} has been rejected.`,
+        description: `${companyName} has been rejected.`,
       });
-      setRejectDialogOpen(false);
-      setSelectedRecruiter(null);
-      setRejectionReason("");
     } catch (rejectError: any) {
       toast({
-        title: "Reject failed",
+        title: "Rejection failed",
         description: rejectError?.message || "Could not reject recruiter.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const openRequestDocumentsDialog = (recruiter: AdminRecruiterVerificationItem) => {
-    setSelectedRecruiter(recruiter);
-    setAdditionalDocsMessage("");
-    setRequestDocsDialogOpen(true);
-  };
-
-  const runRequestAdditionalDocuments = async () => {
-    if (!selectedRecruiter) return;
-
-    try {
-      await requestAdditionalDocuments({
-        recruiterId: selectedRecruiter.recruiter_id,
-        companyName: selectedRecruiter.company_name,
-        message: additionalDocsMessage,
-      });
-      toast({
-        title: "Request sent",
-        description: `Requested additional documents from ${selectedRecruiter.recruiter_name}.`,
-      });
-      setRequestDocsDialogOpen(false);
-      setSelectedRecruiter(null);
-      setAdditionalDocsMessage("");
-    } catch (requestError: any) {
-      toast({
-        title: "Request failed",
-        description: requestError?.message || "Could not request documents.",
         variant: "destructive",
       });
     }
@@ -232,15 +150,14 @@ const AdminRecruiterVerification = () => {
             Recruiter Verification
           </h1>
           <p className="text-muted-foreground">
-            Review recruiter submissions, verify companies, and manage document checks.
+            Review recruiter documents and approve or reject account verification.
           </p>
         </section>
 
         <Card className="card-dashboard">
           <CardHeader className="pb-4">
             <div className="flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <FileCheck2 className="w-5 h-5" />
+              <CardTitle className="text-lg">
                 Recruiters ({totalLabel})
               </CardTitle>
               <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
@@ -257,7 +174,7 @@ const AdminRecruiterVerification = () => {
                   value={organizationTypeFilter}
                   onValueChange={(value) => setOrganizationTypeFilter(value as "all" | RecruiterOrganizationType)}
                 >
-                  <SelectTrigger className="w-full sm:w-40 h-10">
+                  <SelectTrigger className="w-full sm:w-44 h-10">
                     <SelectValue placeholder="Type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -286,6 +203,7 @@ const AdminRecruiterVerification = () => {
               </div>
             </div>
           </CardHeader>
+
           <CardContent className="p-0">
             {isLoading ? (
               <div className="py-16 flex items-center justify-center">
@@ -306,11 +224,10 @@ const AdminRecruiterVerification = () => {
                     <TableHead>Company Name</TableHead>
                     <TableHead>Recruiter Name</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead>Recruiter Type</TableHead>
-                    <TableHead>Country</TableHead>
-                    <TableHead>Verification Status</TableHead>
-                    <TableHead>Submitted Documents</TableHead>
-                    <TableHead>Created Date</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Documents</TableHead>
+                    <TableHead>Created</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -325,13 +242,10 @@ const AdminRecruiterVerification = () => {
                           {recruiter.organization_type === "agency" ? "Agency" : "Employer"}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{recruiter.country || "-"}</TableCell>
                       <TableCell>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="outline" className={getStatusClass(recruiter.verification_status)}>
-                            {getStatusLabel(recruiter.verification_status)}
-                          </Badge>
-                        </div>
+                        <Badge variant="outline" className={getStatusClass(recruiter.verification_status)}>
+                          {getStatusLabel(recruiter.verification_status)}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         {recruiter.documents.length === 0 ? (
@@ -340,14 +254,14 @@ const AdminRecruiterVerification = () => {
                           <div className="space-y-1">
                             {recruiter.documents.map((document) => (
                               <a
-                                key={document.path}
+                                key={document.url}
                                 href={document.url}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="flex items-center gap-1 text-xs text-primary hover:underline"
                               >
                                 <FileText className="w-3.5 h-3.5" />
-                                {document.label}
+                                {document.fileName}
                               </a>
                             ))}
                           </div>
@@ -357,36 +271,26 @@ const AdminRecruiterVerification = () => {
                         {formatDate(recruiter.created_at)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-56">
-                            <DropdownMenuItem
-                              disabled={recruiter.verification_status === "verified" || isApproving}
-                              onClick={() => handleApprove(recruiter)}
-                            >
-                              <CheckCircle2 className="w-4 h-4 mr-2" />
-                              Approve Recruiter
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              disabled={recruiter.verification_status === "rejected" || isRejecting}
-                              onClick={() => openRejectDialog(recruiter)}
-                            >
-                              <XCircle className="w-4 h-4 mr-2" />
-                              Reject Recruiter
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              disabled={isRequestingDocuments}
-                              onClick={() => openRequestDocumentsDialog(recruiter)}
-                            >
-                              <FileText className="w-4 h-4 mr-2" />
-                              Request Additional Documents
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={recruiter.verification_status === "verified" || isApproving}
+                            onClick={() => handleApprove(recruiter.recruiter_id, recruiter.company_name)}
+                          >
+                            <CheckCircle2 className="w-4 h-4 mr-2" />
+                            Approve
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={recruiter.verification_status === "rejected" || isRejecting}
+                            onClick={() => handleReject(recruiter.recruiter_id, recruiter.company_name)}
+                          >
+                            <XCircle className="w-4 h-4 mr-2" />
+                            Reject
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -421,78 +325,6 @@ const AdminRecruiterVerification = () => {
           </CardContent>
         </Card>
       </div>
-
-      <Dialog
-        open={rejectDialogOpen}
-        onOpenChange={(open) => {
-          setRejectDialogOpen(open);
-          if (!open) {
-            setSelectedRecruiter(null);
-            setRejectionReason("");
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reject Recruiter</DialogTitle>
-            <DialogDescription>
-              Add an optional rejection reason for {selectedRecruiter?.company_name || "this recruiter"}.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Input
-              value={rejectionReason}
-              onChange={(event) => setRejectionReason(event.target.value)}
-              placeholder="Reason (optional)"
-            />
-            <div className="flex items-center justify-end gap-2">
-              <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={runReject} disabled={isRejecting}>
-                {isRejecting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                Reject
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={requestDocsDialogOpen}
-        onOpenChange={(open) => {
-          setRequestDocsDialogOpen(open);
-          if (!open) {
-            setSelectedRecruiter(null);
-            setAdditionalDocsMessage("");
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Request Additional Documents</DialogTitle>
-            <DialogDescription>
-              Send a request to {selectedRecruiter?.recruiter_name || "this recruiter"}.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Input
-              value={additionalDocsMessage}
-              onChange={(event) => setAdditionalDocsMessage(event.target.value)}
-              placeholder="Message (optional)"
-            />
-            <div className="flex items-center justify-end gap-2">
-              <Button variant="outline" onClick={() => setRequestDocsDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={runRequestAdditionalDocuments} disabled={isRequestingDocuments}>
-                {isRequestingDocuments ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                Send Request
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </DashboardLayout>
   );
 };

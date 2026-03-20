@@ -19,9 +19,23 @@ export interface AdminDashboardKpis {
     applicationsToday: number;
     activeSubscriptions: number;
     platformActivity: number;
+    newCandidatesToday: number;
+    newRecruitersThisWeek: number;
+    applicationsThisWeek: number;
+    jobsPostedThisWeek: number;
 }
 
 export interface AdminDashboardData {
+    mostActiveCandidates: Array<{
+        id: string;
+        name: string;
+        applications_count: number;
+    }>;
+    mostActiveRecruiters: Array<{
+        id: string;
+        name: string;
+        jobs_count: number;
+    }>;
     revenue: {
         total_revenue: number;
         revenue_basic: number;
@@ -119,6 +133,71 @@ interface SubscriptionRow {
     created_at?: string | null;
 }
 
+const fetchMostActiveCandidates = async (profiles: ProfileRow[], applications: ApplicationRow[]) => {
+    const candidateNameById = new Map(
+        profiles
+            .filter((profile) => profile.role === 'candidate')
+            .map((profile) => [profile.id, profile.full_name || 'Candidate']),
+    );
+
+    const applicationsByCandidateId = new Map<string, number>();
+    applications.forEach((application) => {
+        if (!application.candidate_id || !candidateNameById.has(application.candidate_id)) return;
+        applicationsByCandidateId.set(
+            application.candidate_id,
+            (applicationsByCandidateId.get(application.candidate_id) || 0) + 1,
+        );
+    });
+
+    return Array.from(applicationsByCandidateId.entries())
+        .map(([id, applications_count]) => ({
+            id,
+            name: candidateNameById.get(id) || 'Candidate',
+            applications_count,
+        }))
+        .sort((left, right) => {
+            if (right.applications_count !== left.applications_count) {
+                return right.applications_count - left.applications_count;
+            }
+            return left.name.localeCompare(right.name);
+        })
+        .slice(0, 5);
+};
+
+const fetchMostActiveRecruiters = async (
+    profiles: ProfileRow[],
+    jobs: JobRow[],
+) => {
+    const recruiterProfileByOrgId = new Map(
+        profiles
+            .filter((profile) => (profile.role === 'employer' || profile.role === 'agency') && !!profile.organization_id)
+            .map((profile) => [profile.organization_id as string, profile]),
+    );
+
+    return Array.from(
+        jobs.reduce((map, job) => {
+            if (!job.organization_id) return map;
+            map.set(job.organization_id, (map.get(job.organization_id) || 0) + 1);
+            return map;
+        }, new Map<string, number>()),
+    )
+        .map(([organizationId, jobs_count]) => {
+            const recruiter = recruiterProfileByOrgId.get(organizationId);
+            return {
+                id: recruiter?.id || organizationId,
+                name: recruiter?.full_name || 'Recruiter',
+                jobs_count,
+            };
+        })
+        .sort((left, right) => {
+            if (right.jobs_count !== left.jobs_count) {
+                return right.jobs_count - left.jobs_count;
+            }
+            return left.name.localeCompare(right.name);
+        })
+        .slice(0, 5);
+};
+
 const toNumber = (value: unknown) => {
     const parsed = typeof value === 'number' ? value : Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
@@ -182,7 +261,10 @@ const buildAdminDashboardFromTables = async (): Promise<AdminDashboardData> => {
         selectWithFallback<ProfileRow>('profiles', ['id, full_name, role, created_at']),
         selectWithFallback<OrganizationRow>('organizations', ['id, name, type, created_at']),
         selectWithFallback<JobRow>('jobs', ['id, title, status, created_at, organization_id']),
-        selectWithFallback<ApplicationRow>('applications', ['id, status, created_at, applied_at, job_id, candidate_id']),
+        selectWithFallback<ApplicationRow>('applications', [
+            'id, status, applied_at, job_id, candidate_id',
+            'id, status, created_at, applied_at, job_id, candidate_id',
+        ]),
         selectWithFallback<SubscriptionRow>('subscriptions', [
             'id, organization_id, plan_type, status, is_active, amount, start_date, end_date, created_at',
             'id, organization_id, plan_type, status, is_active, start_date, end_date, created_at',
@@ -195,7 +277,6 @@ const buildAdminDashboardFromTables = async (): Promise<AdminDashboardData> => {
     );
     const jobsById = new Map(jobs.map((job) => [job.id, job]));
     const profilesById = new Map(profiles.map((profile) => [profile.id, profile.full_name || 'Candidate']));
-
     const totalEmployers = organizations.filter((organization) => organization.type === 'employer').length;
     const totalAgencies = organizations.filter((organization) => organization.type === 'agency').length;
     const totalCandidates = profiles.filter((profile) => profile.role === 'candidate').length;
@@ -297,7 +378,12 @@ const buildAdminDashboardFromTables = async (): Promise<AdminDashboardData> => {
             is_active: isActiveSubscription(subscription),
         }));
 
+    const mostActiveCandidates = await fetchMostActiveCandidates(profiles, applications);
+    const mostActiveRecruiters = await fetchMostActiveRecruiters(profiles, jobs);
+
     return {
+        mostActiveCandidates,
+        mostActiveRecruiters,
         revenue: {
             total_revenue: totalRevenue,
             revenue_basic: revenueBasic,
@@ -333,7 +419,24 @@ export function useAdminDashboard() {
 
             const rpcResponse = await supabase.rpc('get_admin_dashboard_data');
             if (!rpcResponse.error && rpcResponse.data) {
-                return rpcResponse.data as AdminDashboardData;
+                const rpcData = rpcResponse.data as Omit<AdminDashboardData, 'mostActiveCandidates' | 'mostActiveRecruiters'>;
+                const [profiles, jobs, applications] = await Promise.all([
+                    selectWithFallback<ProfileRow>('profiles', ['id, full_name, role, organization_id, created_at']),
+                    selectWithFallback<JobRow>('jobs', ['id, title, status, created_at, organization_id']),
+                    selectWithFallback<ApplicationRow>('applications', [
+                        'id, status, applied_at, job_id, candidate_id',
+                        'id, status, created_at, applied_at, job_id, candidate_id',
+                    ]),
+                ]);
+
+                const mostActiveCandidates = await fetchMostActiveCandidates(profiles, applications);
+                const mostActiveRecruiters = await fetchMostActiveRecruiters(profiles, jobs);
+
+                return {
+                    ...rpcData,
+                    mostActiveCandidates,
+                    mostActiveRecruiters,
+                };
             }
 
             if (rpcResponse.error) {
@@ -373,26 +476,60 @@ export function useAdminDashboard() {
                     applicationsToday: 0,
                     activeSubscriptions: 0,
                     platformActivity: 0,
+                    newCandidatesToday: 0,
+                    newRecruitersThisWeek: 0,
+                    applicationsThisWeek: 0,
+                    jobsPostedThisWeek: 0,
                 };
             }
 
             const dayStart = new Date();
             dayStart.setHours(0, 0, 0, 0);
             const dayStartIso = dayStart.toISOString();
+            const weekStartIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-            const [appsTodayRes, activityTodayRes] = await Promise.all([
+            const [
+                appsTodayRes,
+                activityTodayRes,
+                newCandidatesTodayRes,
+                newRecruitersThisWeekRes,
+                applicationsThisWeekRes,
+                jobsPostedThisWeekRes,
+            ] = await Promise.all([
                 supabase
                     .from('applications')
-                    .select('*', { count: 'exact', head: true })
+                    .select('id', { count: 'exact', head: true })
                     .gte('applied_at', dayStartIso),
                 supabase
                     .from('activity_logs')
-                    .select('*', { count: 'exact', head: true })
+                    .select('id', { count: 'exact', head: true })
                     .gte('created_at', dayStartIso),
+                supabase
+                    .from('profiles')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('role', 'candidate')
+                    .gte('created_at', dayStartIso),
+                supabase
+                    .from('profiles')
+                    .select('id', { count: 'exact', head: true })
+                    .in('role', ['employer', 'agency'])
+                    .gte('created_at', weekStartIso),
+                supabase
+                    .from('applications')
+                    .select('id', { count: 'exact', head: true })
+                    .gte('applied_at', weekStartIso),
+                supabase
+                    .from('jobs')
+                    .select('id', { count: 'exact', head: true })
+                    .gte('created_at', weekStartIso),
             ]);
 
             if (appsTodayRes.error) throw appsTodayRes.error;
             if (activityTodayRes.error) throw activityTodayRes.error;
+            if (newCandidatesTodayRes.error) throw newCandidatesTodayRes.error;
+            if (newRecruitersThisWeekRes.error) throw newRecruitersThisWeekRes.error;
+            if (applicationsThisWeekRes.error) throw applicationsThisWeekRes.error;
+            if (jobsPostedThisWeekRes.error) throw jobsPostedThisWeekRes.error;
 
             const summary = query.data;
             const totalUsers =
@@ -406,6 +543,10 @@ export function useAdminDashboard() {
                 applicationsToday: Number(appsTodayRes.count || 0),
                 activeSubscriptions: Number(summary?.revenue?.active_subscriptions || 0),
                 platformActivity: Number(activityTodayRes.count || 0),
+                newCandidatesToday: Number(newCandidatesTodayRes.count || 0),
+                newRecruitersThisWeek: Number(newRecruitersThisWeekRes.count || 0),
+                applicationsThisWeek: Number(applicationsThisWeekRes.count || 0),
+                jobsPostedThisWeek: Number(jobsPostedThisWeekRes.count || 0),
             };
         },
         enabled: !!user,

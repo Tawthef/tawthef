@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TrendingDown, TrendingUp, LucideIcon } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, LucideIcon } from "lucide-react";
 
 type TrendTone = "up" | "down" | "neutral";
 
@@ -8,22 +8,30 @@ interface DashboardStatCardProps {
   title: string;
   value: string | number;
   icon: LucideIcon;
-  trendText?: string;
-  trendTone?: TrendTone;
+  trend?: number;
+  trendLabel?: string;
+  trendDirection?: TrendTone;
 }
 
 const trendToneClass: Record<TrendTone, string> = {
-  up: "text-success",
-  down: "text-destructive",
-  neutral: "text-muted-foreground",
+  up: "text-green-600",
+  down: "text-red-500",
+  neutral: "text-gray-500",
+};
+
+const formatTrendValue = (trend: number, direction: TrendTone) => {
+  if (direction === "neutral") return `${trend.toLocaleString("en-US")}`;
+  const absoluteValue = Math.abs(trend).toLocaleString("en-US");
+  return `${direction === "up" ? "+" : "-"}${absoluteValue}`;
 };
 
 export default function DashboardStatCard({
   title,
   value,
   icon: Icon,
-  trendText,
-  trendTone = "neutral",
+  trend,
+  trendLabel,
+  trendDirection = "neutral",
 }: DashboardStatCardProps) {
   return (
     <Card className="card-dashboard">
@@ -32,11 +40,14 @@ export default function DashboardStatCard({
           <div className="min-w-0 space-y-2">
             <p className="text-sm font-medium text-muted-foreground">{title}</p>
             <p className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">{value}</p>
-            {trendText ? (
-              <p className={`text-xs flex items-center gap-1 ${trendToneClass[trendTone]}`}>
-                {trendTone === "up" && <TrendingUp className="w-3.5 h-3.5" />}
-                {trendTone === "down" && <TrendingDown className="w-3.5 h-3.5" />}
-                <span>{trendText}</span>
+            {typeof trend === "number" && trendLabel ? (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <span className={`inline-flex items-center gap-1 ${trendToneClass[trendDirection]}`}>
+                  {trendDirection === "up" && <ArrowUpRight className="w-3.5 h-3.5" />}
+                  {trendDirection === "down" && <ArrowDownRight className="w-3.5 h-3.5" />}
+                  <span>{formatTrendValue(trend, trendDirection)}</span>
+                </span>
+                <span>{trendLabel}</span>
               </p>
             ) : (
               <p className="text-xs text-muted-foreground">Updated recently</p>

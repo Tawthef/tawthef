@@ -128,6 +128,8 @@ const getPlanName = (row: SubscriptionRow) => {
 
   if (row.plan_type === "job_slot_basic") return "Single Job Slot";
   if (row.plan_type === "job_slot_pro") return "10 Job Slots";
+  if (row.plan_type === "job_slot_invite") return "Invite Job Slots";
+  if (row.plan_type === "full_access") return "Full Access Invite";
   if (row.plan_type === "resume_search") return "Resume Search Access";
   return "Unknown Plan";
 };

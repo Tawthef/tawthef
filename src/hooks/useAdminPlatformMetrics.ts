@@ -115,30 +115,17 @@ export function useAdminPlatformMetrics() {
             const emptyTrend = buildEmptyApplicationsTrend(startDate);
             const startIso = startDate.toISOString();
 
-            const { data: createdRows, error: createdError } = await supabase
+            const { data, error } = await supabase
                 .from('applications')
-                .select('created_at')
-                .gte('created_at', startIso)
-                .order('created_at', { ascending: true });
+                .select('applied_at')
+                .gte('applied_at', startIso)
+                .order('applied_at', { ascending: true });
 
-            let timestamps: string[] = [];
+            if (error) throw error;
 
-            if (createdError) {
-                const { data: appliedRows, error: appliedError } = await supabase
-                    .from('applications')
-                    .select('applied_at')
-                    .gte('applied_at', startIso)
-                    .order('applied_at', { ascending: true });
-
-                if (appliedError) throw appliedError;
-                timestamps = (appliedRows || [])
-                    .map((row: { applied_at: string | null }) => row.applied_at)
-                    .filter(Boolean) as string[];
-            } else {
-                timestamps = (createdRows || [])
-                    .map((row: { created_at: string | null }) => row.created_at)
-                    .filter(Boolean) as string[];
-            }
+            const timestamps = (data || [])
+                .map((row: { applied_at: string | null }) => row.applied_at)
+                .filter(Boolean) as string[];
 
             const countByDate = new Map(emptyTrend.map((point) => [point.date, 0]));
             timestamps.forEach((timestamp) => {

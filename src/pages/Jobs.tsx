@@ -14,6 +14,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import UpgradeModal from "@/components/UpgradeModal";
 import { useToast } from "@/hooks/use-toast";
+import RecruiterVerificationBanner from "@/components/recruiter/RecruiterVerificationBanner";
 
 const getStatusBadge = (status: string) => {
   const config: Record<string, { label: string; className: string }> = {
@@ -45,6 +46,7 @@ const Jobs = () => {
   const isEmployer = profile?.role === 'employer';
   const isAgency = profile?.role === 'agency';
   const isCandidate = profile?.role === 'candidate';
+  const recruiterRestricted = (isEmployer || isAgency) && profile?.verification_status !== 'verified';
 
   const handleApply = async (jobId: string) => {
     setApplyingJobId(jobId);
@@ -58,6 +60,15 @@ const Jobs = () => {
   };
 
   const handlePostJob = async () => {
+    if (recruiterRestricted) {
+      toast({
+        title: "Verification required",
+        description: "Your account is under review",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Server-side enforcement: check if subscription is valid
     if (!hasAvailableSlots) {
       setShowUpgradeModal(true);
@@ -89,6 +100,8 @@ const Jobs = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6 sm:space-y-8 lg:space-y-14">
+        <RecruiterVerificationBanner />
+
         {/* Page header */}
         <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 sm:gap-6 lg:gap-10">
           <div className="space-y-3">
@@ -102,7 +115,7 @@ const Jobs = () => {
               <Button
                 className="w-full sm:w-fit shadow-xl shadow-primary/25 h-11 sm:h-14 lg:h-16 px-6 sm:px-8 lg:px-10 text-sm sm:text-base font-semibold rounded-xl sm:rounded-2xl"
                 onClick={handlePostJob}
-                disabled={isConsuming}
+                disabled={isConsuming || recruiterRestricted}
               >
                 {isConsuming ? (
                   <Loader2 className="w-5 h-5 mr-3 animate-spin" />
@@ -116,7 +129,7 @@ const Jobs = () => {
                   </Badge>
                 )}
               </Button>
-              {!hasAvailableSlots && (
+              {!hasAvailableSlots && !recruiterRestricted && (
                 <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover:block z-10">
                   <div className="bg-foreground text-background text-xs px-3 py-2 rounded-lg whitespace-nowrap">
                     Upgrade your plan to post more jobs
@@ -129,7 +142,7 @@ const Jobs = () => {
         </div>
 
         {/* Upgrade banner for employers with no slots */}
-        {isEmployer && !hasAvailableSlots && (
+        {isEmployer && !hasAvailableSlots && !recruiterRestricted && (
           <Card className="border-warning/30 bg-warning/5">
             <CardContent className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
               <div className="flex items-center gap-3 flex-1">

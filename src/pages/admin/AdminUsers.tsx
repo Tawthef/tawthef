@@ -1,22 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
-import {
-  Activity,
-  KeyRound,
-  Loader2,
-  MoreHorizontal,
-  Search,
-  Shield,
-  UserCheck,
-  UserCog,
-  UserX,
-  Users,
-} from "lucide-react";
+import { Activity, KeyRound, Loader2, Search, Shield, Users } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useProfile } from "@/hooks/useProfile";
 import {
   ADMIN_USERS_PAGE_SIZE,
   AdminUser,
+  AdminUserActivity,
   AdminUserRole,
   AdminUserStatus,
   AdminUserTypeFilter,
@@ -27,11 +17,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -40,36 +31,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const USER_TYPE_OPTIONS: Array<{ label: string; value: AdminUserTypeFilter }> = [
   { label: "All", value: "all" },
-  { label: "Candidates", value: "candidates" },
-  { label: "Recruiters", value: "recruiters" },
-  { label: "Admins", value: "admins" },
-];
-
-const STATUS_OPTIONS: Array<{ label: string; value: "all" | AdminUserStatus }> = [
-  { label: "All", value: "all" },
-  { label: "Active", value: "active" },
-  { label: "Suspended", value: "suspended" },
+  { label: "Candidate", value: "candidate" },
+  { label: "Employer", value: "employer" },
+  { label: "Agency", value: "agency" },
+  { label: "Admin", value: "admin" },
 ];
 
 const ROLE_OPTIONS: Array<{ label: string; value: AdminUserRole }> = [
@@ -88,17 +65,10 @@ const formatDate = (date: string | null) =>
       })
     : "Never";
 
-const getRoleLabel = (role: string) => {
-  if (role === "candidate") return "Candidate";
-  if (role === "employer") return "Employer";
-  if (role === "agency") return "Agency";
-  if (role === "admin") return "Admin";
-  return role;
-};
-
 const getRoleBadgeClass = (role: string) => {
   if (role === "candidate") return "bg-blue-500/10 text-blue-600 border-blue-500/20";
-  if (role === "employer" || role === "agency") return "bg-purple-500/10 text-purple-600 border-purple-500/20";
+  if (role === "employer") return "bg-primary/10 text-primary border-primary/20";
+  if (role === "agency") return "bg-accent/10 text-accent border-accent/20";
   if (role === "admin") return "bg-orange-500/10 text-orange-600 border-orange-500/20";
   return "bg-muted text-muted-foreground border-border";
 };
@@ -108,8 +78,7 @@ const getStatusBadgeClass = (status: AdminUserStatus) =>
     ? "bg-destructive/10 text-destructive border-destructive/20"
     : "bg-success/10 text-success border-success/20";
 
-const getStatusLabel = (status: AdminUserStatus) =>
-  status === "suspended" ? "Suspended" : "Active";
+const getStatusLabel = (status: AdminUserStatus) => (status === "suspended" ? "Suspended" : "Active");
 
 const AdminUsers = () => {
   const { profile, isLoading: isProfileLoading } = useProfile();
@@ -118,27 +87,11 @@ const AdminUsers = () => {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [userTypeFilter, setUserTypeFilter] = useState<AdminUserTypeFilter>("all");
-  const [statusFilter, setStatusFilter] = useState<"all" | AdminUserStatus>("all");
-
-  const [selectedRoleUser, setSelectedRoleUser] = useState<AdminUser | null>(null);
-  const [pendingRole, setPendingRole] = useState<AdminUserRole>("candidate");
-  const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
-  const [isRoleConfirmOpen, setIsRoleConfirmOpen] = useState(false);
-
-  const [selectedResetUser, setSelectedResetUser] = useState<AdminUser | null>(null);
-  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
 
   const [selectedActivityUser, setSelectedActivityUser] = useState<AdminUser | null>(null);
   const [isActivityDialogOpen, setIsActivityDialogOpen] = useState(false);
-  const [activitySummary, setActivitySummary] = useState<{
-    accountCreated: string | null;
-    lastLogin: string | null;
-    jobsPosted: number;
-    applicationsSubmitted: number;
-    interviewsScheduled: number;
-    messagesSent: number;
-    auditEvents: number;
-  } | null>(null);
+  const [activitySummary, setActivitySummary] = useState<AdminUserActivity | null>(null);
+  const [resettingUserId, setResettingUserId] = useState<string | null>(null);
 
   const {
     users,
@@ -159,12 +112,12 @@ const AdminUsers = () => {
     limit: ADMIN_USERS_PAGE_SIZE,
     search,
     userType: userTypeFilter,
-    status: statusFilter,
+    status: "all",
   });
 
   useEffect(() => {
     setPage(1);
-  }, [search, userTypeFilter, statusFilter]);
+  }, [search, userTypeFilter]);
 
   const totalLabel = useMemo(() => pagination.total.toLocaleString("en-US"), [pagination.total]);
 
@@ -182,9 +135,10 @@ const AdminUsers = () => {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const handleToggleStatus = async (user: AdminUser) => {
+  const handleToggleStatus = async (user: AdminUser, checked: boolean) => {
+    const nextStatus: AdminUserStatus = checked ? "active" : "suspended";
+
     try {
-      const nextStatus: AdminUserStatus = user.status === "suspended" ? "active" : "suspended";
       await updateUserStatus({ userId: user.id, status: nextStatus });
       toast({
         title: "User status updated",
@@ -199,24 +153,15 @@ const AdminUsers = () => {
     }
   };
 
-  const openRoleDialog = (user: AdminUser) => {
-    setSelectedRoleUser(user);
-    setPendingRole(user.role);
-    setIsRoleDialogOpen(true);
-  };
-
-  const confirmRoleUpdate = async () => {
-    if (!selectedRoleUser) return;
+  const handleRoleChange = async (user: AdminUser, nextRole: AdminUserRole) => {
+    if (nextRole === user.role) return;
 
     try {
-      await updateUserRole({ userId: selectedRoleUser.id, role: pendingRole });
+      await updateUserRole({ userId: user.id, role: nextRole });
       toast({
         title: "Role updated",
-        description: `${selectedRoleUser.full_name || selectedRoleUser.email || "User"} is now ${getRoleLabel(pendingRole)}.`,
+        description: `${user.full_name || user.email || "User"} is now ${nextRole}.`,
       });
-      setIsRoleConfirmOpen(false);
-      setIsRoleDialogOpen(false);
-      setSelectedRoleUser(null);
     } catch (mutationError: any) {
       toast({
         title: "Failed to update role",
@@ -226,29 +171,10 @@ const AdminUsers = () => {
     }
   };
 
-  const confirmResetPassword = async () => {
-    if (!selectedResetUser?.email) return;
-
-    try {
-      await resetUserPassword({ email: selectedResetUser.email });
-      toast({
-        title: "Reset email sent",
-        description: `Password reset instructions were sent to ${selectedResetUser.email}.`,
-      });
-      setIsResetConfirmOpen(false);
-      setSelectedResetUser(null);
-    } catch (mutationError: any) {
-      toast({
-        title: "Failed to send reset email",
-        description: mutationError?.message || "Could not send password reset email.",
-        variant: "destructive",
-      });
-    }
-  };
-
   const openActivityDialog = async (user: AdminUser) => {
     try {
       setSelectedActivityUser(user);
+      setActivitySummary(null);
       setIsActivityDialogOpen(true);
       const summary = await getUserActivity({ userId: user.id });
       setActivitySummary(summary);
@@ -262,6 +188,34 @@ const AdminUsers = () => {
     }
   };
 
+  const handleResetPassword = async (user: AdminUser) => {
+    if (!user.email) {
+      toast({
+        title: "Email unavailable",
+        description: "This user does not have an email address available for password reset.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setResettingUserId(user.id);
+      await resetUserPassword({ email: user.email });
+      toast({
+        title: "Password reset sent",
+        description: `A Supabase password reset email was sent to ${user.email}.`,
+      });
+    } catch (resetError: any) {
+      toast({
+        title: "Failed to send reset",
+        description: resetError?.message || "Could not trigger the password reset email.",
+        variant: "destructive",
+      });
+    } finally {
+      setResettingUserId(null);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-8">
@@ -271,7 +225,7 @@ const AdminUsers = () => {
             Users Management
           </h1>
           <p className="text-muted-foreground">
-            Manage users, roles, account status, and platform activity.
+            Manage platform users, account status, roles, and basic activity.
           </p>
         </section>
 
@@ -294,22 +248,10 @@ const AdminUsers = () => {
                 </div>
                 <Select value={userTypeFilter} onValueChange={(value) => setUserTypeFilter(value as AdminUserTypeFilter)}>
                   <SelectTrigger className="w-full sm:w-44 h-10">
-                    <SelectValue placeholder="User Type" />
+                    <SelectValue placeholder="Role Filter" />
                   </SelectTrigger>
                   <SelectContent>
                     {USER_TYPE_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "all" | AdminUserStatus)}>
-                  <SelectTrigger className="w-full sm:w-40 h-10">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUS_OPTIONS.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         {option.label}
                       </SelectItem>
@@ -321,232 +263,161 @@ const AdminUsers = () => {
           </CardHeader>
           <CardContent className="p-0">
             {isLoading ? (
-              <div className="flex items-center justify-center py-16">
-                <Loader2 className="w-6 h-6 text-primary animate-spin" />
+              <div className="space-y-3 px-6 py-6">
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <div key={index} className="h-14 animate-pulse rounded-xl bg-muted/40" />
+                ))}
               </div>
             ) : error ? (
               <div className="py-14 text-center text-destructive text-sm">
                 Failed to load users. Please try again.
               </div>
             ) : users.length === 0 ? (
-              <div className="py-14 text-center text-muted-foreground text-sm">
-                No users found for the selected filters.
+              <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+                <div className="rounded-full bg-muted p-3 text-muted-foreground">
+                  <Users className="h-5 w-5" />
+                </div>
+                <div className="space-y-1">
+                  <p className="font-medium text-foreground">No users found</p>
+                  <p className="text-sm text-muted-foreground">
+                    Try adjusting the search term or role filter.
+                  </p>
+                </div>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border/30 text-muted-foreground">
-                      <th className="text-left py-3 px-6 font-medium">Name</th>
-                      <th className="text-left py-3 px-4 font-medium">Email</th>
-                      <th className="text-left py-3 px-4 font-medium">Role</th>
-                      <th className="text-left py-3 px-4 font-medium">Recruiter</th>
-                      <th className="text-left py-3 px-4 font-medium">Status</th>
-                      <th className="text-left py-3 px-4 font-medium">Created Date</th>
-                      <th className="text-left py-3 px-4 font-medium">Last Login</th>
-                      <th className="text-right py-3 px-6 font-medium">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {users.map((user) => {
-                      const isCurrentUser = user.id === profile?.id;
-                      return (
-                        <tr
-                          key={user.id}
-                          className="border-b border-border/10 hover:bg-muted/5 transition-colors"
-                        >
-                          <td className="py-4 px-6">
-                            <p className="font-medium text-foreground">
-                              {user.full_name || "Unknown User"}
-                            </p>
-                          </td>
-                          <td className="py-4 px-4 text-muted-foreground">
-                            {user.email || "Unavailable"}
-                          </td>
-                          <td className="py-4 px-4">
-                            <Badge variant="outline" className={getRoleBadgeClass(user.role)}>
-                              {getRoleLabel(user.role)}
-                            </Badge>
-                          </td>
-                          <td className="py-4 px-4 text-muted-foreground">
-                            {user.organization_name || "-"}
-                          </td>
-                          <td className="py-4 px-4">
-                            <Badge variant="outline" className={getStatusBadgeClass(user.status)}>
-                              {getStatusLabel(user.status)}
-                            </Badge>
-                          </td>
-                          <td className="py-4 px-4 text-muted-foreground text-xs">
-                            {formatDate(user.created_at)}
-                          </td>
-                          <td className="py-4 px-4 text-muted-foreground text-xs">
-                            {formatDate(user.last_login)}
-                          </td>
-                          <td className="py-4 px-6 text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                  <MoreHorizontal className="w-4 h-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    setActivitySummary(null);
-                                    openActivityDialog(user);
-                                  }}
-                                >
-                                  <Activity className="w-4 h-4 mr-2" />
-                                  View Activity
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  disabled={isCurrentUser}
-                                  onClick={() => openRoleDialog(user)}
-                                >
-                                  <UserCog className="w-4 h-4 mr-2" />
-                                  Assign Role
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  disabled={isCurrentUser || isUpdatingStatus}
-                                  onClick={() => handleToggleStatus(user)}
-                                >
-                                  {user.status === "suspended" ? (
-                                    <UserCheck className="w-4 h-4 mr-2" />
-                                  ) : (
-                                    <UserX className="w-4 h-4 mr-2" />
-                                  )}
-                                  {user.status === "suspended" ? "Activate Account" : "Suspend Account"}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  disabled={!user.email || isResettingPassword}
-                                  onClick={() => {
-                                    setSelectedResetUser(user);
-                                    setIsResetConfirmOpen(true);
-                                  }}
-                                >
-                                  <KeyRound className="w-4 h-4 mr-2" />
-                                  Reset Password
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+              <>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Created date</TableHead>
+                        <TableHead>Controls</TableHead>
+                        <TableHead className="text-right">Activity</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {users.map((user) => {
+                        const isCurrentUser = user.id === profile?.id;
+                        const isResettingThisUser = resettingUserId === user.id && isResettingPassword;
 
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 border-t border-border/20">
-              <p className="text-xs text-muted-foreground">
-                Page {pagination.page} of {pagination.totalPages}
-                {isFetching ? " - Updating..." : ""}
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={pagination.page <= 1 || isFetching}
-                  onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!pagination.hasNextPage || isFetching}
-                  onClick={() => setPage((prev) => prev + 1)}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
+                        return (
+                          <TableRow key={user.id}>
+                            <TableCell className="font-medium">{user.full_name || "Unknown User"}</TableCell>
+                            <TableCell className="text-muted-foreground">{user.email || "Unavailable"}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className={getRoleBadgeClass(user.role)}>
+                                {user.role}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className={getStatusBadgeClass(user.status)}>
+                                {getStatusLabel(user.status)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-xs">
+                              {formatDate(user.created_at)}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex min-w-[320px] flex-col gap-3 lg:min-w-0">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                                  <Select
+                                    value={user.role}
+                                    onValueChange={(value) => handleRoleChange(user, value as AdminUserRole)}
+                                    disabled={isCurrentUser || isUpdatingRole}
+                                  >
+                                    <SelectTrigger className="h-9 w-[150px]">
+                                      <SelectValue placeholder="Role" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {ROLE_OPTIONS.map((roleOption) => (
+                                        <SelectItem key={roleOption.value} value={roleOption.value}>
+                                          {roleOption.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+
+                                  <div className="flex items-center gap-2">
+                                    <Switch
+                                      checked={user.status === "active"}
+                                      onCheckedChange={(checked) => handleToggleStatus(user, checked)}
+                                      disabled={isCurrentUser || isUpdatingStatus}
+                                    />
+                                    <span className="text-xs text-muted-foreground">
+                                      {user.status === "active" ? "Active" : "Suspended"}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleResetPassword(user)}
+                                    disabled={!user.email || isResettingThisUser}
+                                  >
+                                    {isResettingThisUser ? (
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <KeyRound className="mr-2 h-4 w-4" />
+                                    )}
+                                    Reset Password
+                                  </Button>
+
+                                  {isCurrentUser && (
+                                    <Badge variant="outline" className="text-xs">
+                                      Current admin
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="outline" size="sm" onClick={() => openActivityDialog(user)}>
+                                <Activity className="w-4 h-4 mr-2" />
+                                View
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 border-t border-border/20">
+                  <p className="text-xs text-muted-foreground">
+                    Showing {users.length} of {totalLabel} users. Page {pagination.page} of {pagination.totalPages}
+                    {isFetching ? " - Updating..." : ""}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={pagination.page <= 1 || isFetching}
+                      onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={!pagination.hasNextPage || isFetching}
+                      onClick={() => setPage((prev) => prev + 1)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
-
-      <Dialog
-        open={isRoleDialogOpen}
-        onOpenChange={(open) => {
-          setIsRoleDialogOpen(open);
-          if (!open) {
-            setSelectedRoleUser(null);
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Assign User Role</DialogTitle>
-            <DialogDescription>
-              Change the user role for {selectedRoleUser?.full_name || selectedRoleUser?.email || "this user"}.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Role</p>
-            <Select value={pendingRole} onValueChange={(value) => setPendingRole(value as AdminUserRole)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a role" />
-              </SelectTrigger>
-              <SelectContent>
-                {ROLE_OPTIONS.map((roleOption) => (
-                  <SelectItem key={roleOption.value} value={roleOption.value}>
-                    {roleOption.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsRoleDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => setIsRoleConfirmOpen(true)}
-              disabled={!selectedRoleUser || pendingRole === selectedRoleUser.role || isUpdatingRole}
-            >
-              {isUpdatingRole ? (
-                <span className="inline-flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Saving...
-                </span>
-              ) : (
-                "Save Role"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog open={isRoleConfirmOpen} onOpenChange={setIsRoleConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Role Change</AlertDialogTitle>
-            <AlertDialogDescription>
-              Change role to {getRoleLabel(pendingRole)} for {selectedRoleUser?.full_name || selectedRoleUser?.email || "this user"}?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmRoleUpdate}>Confirm</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={isResetConfirmOpen} onOpenChange={setIsResetConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Send Password Reset Email</AlertDialogTitle>
-            <AlertDialogDescription>
-              Send a reset password email to {selectedResetUser?.email || "this user"}?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmResetPassword}>Send Email</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       <Dialog
         open={isActivityDialogOpen}
@@ -558,7 +429,7 @@ const AdminUsers = () => {
           }
         }}
       >
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>User Activity</DialogTitle>
             <DialogDescription>
@@ -571,10 +442,10 @@ const AdminUsers = () => {
               <Loader2 className="w-6 h-6 text-primary animate-spin" />
             </div>
           ) : activitySummary ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Card>
                 <CardContent className="p-4">
-                  <p className="text-xs uppercase text-muted-foreground">Account Created</p>
+                  <p className="text-xs uppercase text-muted-foreground">Created</p>
                   <p className="text-sm font-semibold mt-2">{formatDate(activitySummary.accountCreated)}</p>
                 </CardContent>
               </Card>
@@ -586,32 +457,14 @@ const AdminUsers = () => {
               </Card>
               <Card>
                 <CardContent className="p-4">
-                  <p className="text-xs uppercase text-muted-foreground">Jobs Posted</p>
-                  <p className="text-lg font-bold mt-2">{activitySummary.jobsPosted}</p>
+                  <p className="text-xs uppercase text-muted-foreground">Logins</p>
+                  <p className="text-lg font-bold mt-2">{activitySummary.loginCount}</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-4">
-                  <p className="text-xs uppercase text-muted-foreground">Applications Submitted</p>
+                  <p className="text-xs uppercase text-muted-foreground">Applications</p>
                   <p className="text-lg font-bold mt-2">{activitySummary.applicationsSubmitted}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4">
-                  <p className="text-xs uppercase text-muted-foreground">Interviews Scheduled</p>
-                  <p className="text-lg font-bold mt-2">{activitySummary.interviewsScheduled}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4">
-                  <p className="text-xs uppercase text-muted-foreground">Messages Sent</p>
-                  <p className="text-lg font-bold mt-2">{activitySummary.messagesSent}</p>
-                </CardContent>
-              </Card>
-              <Card className="sm:col-span-2 lg:col-span-3">
-                <CardContent className="p-4">
-                  <p className="text-xs uppercase text-muted-foreground">Audit Events</p>
-                  <p className="text-lg font-bold mt-2">{activitySummary.auditEvents}</p>
                 </CardContent>
               </Card>
             </div>

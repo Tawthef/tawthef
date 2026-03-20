@@ -18,11 +18,14 @@ interface Subscription {
     id: string;
     organization_id: string;
     plan_id: string;
+    plan_type?: string | null;
     status: 'active' | 'expired' | 'cancelled';
     start_date: string;
     end_date: string;
     remaining_slots: number;
-    plans: Plan;
+    usage_limit?: number | null;
+    usage_used?: number | null;
+    plans?: Plan | null;
 }
 
 export interface SubscriptionCheck {

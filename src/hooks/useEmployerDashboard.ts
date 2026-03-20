@@ -123,7 +123,7 @@ export function useEmployerDashboard() {
                 .eq('organization_id', orgId)
                 .eq('is_active', true)
                 .gte('end_date', new Date().toISOString())
-                .in('plan_type', ['job_slot_basic', 'job_slot_pro'])
+                .in('plan_type', ['job_slot_basic', 'job_slot_pro', 'job_slot_invite', 'full_access'])
                 .order('created_at', { ascending: false })
                 .limit(1)
                 .maybeSingle();
