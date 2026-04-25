@@ -101,7 +101,7 @@ const buildNotificationsQuery = (filters: AdminNotificationsFilters, includeOpti
 
   const fields = includeOptionalFields
     ? "id, user_id, title, message, type, is_read, created_at, status, recipient_group, archived_at, profiles(full_name, role)"
-    : "id, user_id, title, message, type, is_read, created_at, profiles(full_name, role)";
+    : "id, user_id, title, message, type, is_read, created_at";
 
   let query = supabase.from("notifications").select(fields, { count: "exact" });
 
@@ -140,7 +140,7 @@ export async function getAdminNotifications(filters: AdminNotificationsFilters):
 
   if (response.error) throw response.error;
 
-  const rows = (response.data || []) as NotificationRow[];
+  const rows = (response.data || []) as unknown as NotificationRow[];
   const notifications: AdminNotificationItem[] = rows.map((row) => ({
     id: row.id,
     title: row.title || "Notification",
