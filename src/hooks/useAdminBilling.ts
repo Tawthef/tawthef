@@ -160,8 +160,8 @@ const buildSubscriptionsQuery = async (filters: AdminBillingFilters, includeOpti
   const matchedOrgIds = await getSearchMatchedOrgIds(search);
 
   const fields = includeOptionalFields
-    ? "id, organization_id, plan_id, plan_type, billing_cycle, billing_status, status, is_active, created_at, start_date, end_date, stripe_subscription_id, organizations(name), plans(name, price, currency)"
-    : "id, organization_id, plan_type, status, created_at, start_date, end_date, organizations(name), plans(name, price, currency)";
+    ? "id, organization_id, plan_id, plan_type, billing_cycle, billing_status, status, is_active, created_at, start_date, end_date, stripe_subscription_id, organizations(name)"
+    : "id, organization_id, plan_type, status, created_at, start_date, end_date, organizations(name)";
 
   let query = supabase.from("subscriptions").select(fields);
 

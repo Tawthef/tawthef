@@ -40,7 +40,7 @@ const Jobs = () => {
   const { jobs, isLoading, error } = useJobs();
   const { profile } = useProfile();
   const { apply, hasApplied, isApplying } = useApplications();
-  const { hasAvailableSlots, remainingSlots, isConsuming } = useJobSlots();
+  const { hasAvailableSlots, remainingSlots, isConsuming, isLoading: slotsLoading } = useJobSlots();
   const [applyingJobId, setApplyingJobId] = useState<string | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -89,6 +89,10 @@ const Jobs = () => {
       });
       return;
     }
+    if (!hasAvailableSlots) {
+      setShowUpgradeModal(true);
+      return;
+    }
     setShowCreateDialog(true);
   };
 
@@ -110,7 +114,7 @@ const Jobs = () => {
               <Button
                 className="w-full sm:w-fit shadow-xl shadow-primary/25 h-11 sm:h-14 lg:h-16 px-6 sm:px-8 lg:px-10 text-sm sm:text-base font-semibold rounded-xl sm:rounded-2xl"
                 onClick={handlePostJob}
-                disabled={isConsuming || recruiterRestricted}
+                disabled={isConsuming || recruiterRestricted || slotsLoading}
               >
                 {isConsuming ? (
                   <Loader2 className="w-5 h-5 mr-3 animate-spin" />
