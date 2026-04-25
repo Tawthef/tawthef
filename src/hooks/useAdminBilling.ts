@@ -134,6 +134,15 @@ const getPlanName = (row: SubscriptionRow) => {
   return "Unknown Plan";
 };
 
+const getPlanPrice = (row: SubscriptionRow) => {
+  const plan = getFromRelation(row.plans);
+  if (plan?.price != null) return normalizeAmount(plan.price);
+  if (row.plan_type === "job_slot_basic") return 100;
+  if (row.plan_type === "job_slot_pro") return 300;
+  if (row.plan_type === "resume_search") return 500;
+  return 0;
+};
+
 const getSearchMatchedOrgIds = async (search: string) => {
   if (!search.trim()) return [];
   const { data, error } = await supabase
@@ -266,7 +275,7 @@ const mapFromSubscriptions = (subscriptions: SubscriptionRow[], filters: AdminBi
         payment_id: null,
         company: org?.name || "Unknown Company",
         plan: getPlanName(subscription),
-        amount: normalizeAmount(plan?.price),
+        amount: getPlanPrice(subscription),
         currency: normalizeCurrency(plan?.currency),
         billing_cycle: normalizeBillingCycle(subscription.billing_cycle, subscription.start_date, subscription.end_date),
         payment_status: status,

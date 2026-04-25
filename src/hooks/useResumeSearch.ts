@@ -5,6 +5,7 @@ import { useProfile } from "./useProfile";
 export interface ResumeSearchCandidate {
   candidate_id: string;
   full_name: string;
+  location: string | null;
   skills: string[];
   years_experience: number;
   resume_url: string | null;
@@ -65,6 +66,7 @@ export function useResumeSearch(filters: ResumeSearchFilters) {
         return {
           candidate_id: row.candidate_id,
           full_name: row.full_name || "Unknown Candidate",
+          location: row.location || null,
           skills: candidateSkills,
           years_experience: Number(row.years_experience || 0),
           resume_url: row.resume_url || null,

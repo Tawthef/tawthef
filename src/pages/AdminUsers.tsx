@@ -44,13 +44,11 @@ const formatDate = (d: string | null) => d
     : "Never";
 
 const AdminUsers = () => {
-    const { profile } = useProfile();
+    const { profile, isLoading: isProfileLoading } = useProfile();
     const { toast } = useToast();
     const queryClient = useQueryClient();
     const [search, setSearch] = useState("");
     const [filterRole, setFilterRole] = useState<string | null>(null);
-
-    if (profile?.role !== "admin") return <Navigate to="/dashboard" replace />;
 
     // Fetch all users
     const { data: users = [], isLoading } = useQuery({
@@ -60,6 +58,7 @@ const AdminUsers = () => {
             if (error) throw error;
             return data || [];
         },
+        enabled: profile?.role === "admin",
         staleTime: 1 * 60 * 1000,
     });
 
@@ -96,6 +95,16 @@ const AdminUsers = () => {
         acc[r.value] = users.filter(u => u.role === r.value).length;
         return acc;
     }, {} as Record<string, number>);
+
+    if (isProfileLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+        );
+    }
+
+    if (profile?.role !== "admin") return <Navigate to="/dashboard" replace />;
 
     return (
         <DashboardLayout>

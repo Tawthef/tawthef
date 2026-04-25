@@ -51,7 +51,7 @@ const CTASection = () => {
                 <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
               </Button>
             </Link>
-            <Link to="/contact" className="w-full sm:w-auto">
+            <Link to="/register" className="w-full sm:w-auto">
               <Button
                 variant="outline"
                 className="w-full sm:w-auto h-12 rounded-xl border border-white/30 text-white bg-transparent transition-all hover:bg-white/10 hover:border-white/50 hover:scale-[1.02] active:scale-[0.98] px-8"

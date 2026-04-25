@@ -27,7 +27,7 @@ const sanitizeStringArray = (value: unknown): string[] => {
 const sanitizeAchievements = (value: unknown): string[] => {
   if (!Array.isArray(value)) return [];
   return value
-    .map((item) => String(item || "").replace(/^[\-\*\d\.\)\s]+/, "").trim())
+    .map((item) => String(item || "").replace(/^[-*\d.)\s]+/, "").trim())
     .filter(Boolean)
     .slice(0, 5);
 };
@@ -165,4 +165,3 @@ export const handler: Handler = async (event: HandlerEvent) => {
     };
   }
 };
-

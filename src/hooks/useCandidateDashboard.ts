@@ -150,7 +150,7 @@ export function useCandidateApplications() {
                 .from('applications')
                 .select(`
           id, job_id, status, applied_at,
-          jobs!inner(title, organization_id, organizations!inner(name))
+          jobs(title, organization_id, organizations(name))
         `)
                 .eq('candidate_id', user.id)
                 .order('applied_at', { ascending: false });

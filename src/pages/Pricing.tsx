@@ -38,12 +38,10 @@ const Pricing = () => {
         setLoadingPlan(planSlug);
 
         try {
-            // Get current auth token
             const { data: { session } } = await supabase.auth.getSession();
             const token = session?.access_token;
             if (!token) throw new Error('Not authenticated');
 
-            // Call serverless function to create Stripe checkout session
             const response = await fetch('/api/create-checkout-session', {
                 method: 'POST',
                 headers: {
@@ -53,13 +51,18 @@ const Pricing = () => {
                 body: JSON.stringify({ plan_type: planSlug }),
             });
 
-            const data = await response.json();
+            const text = await response.text();
+            let data: any = {};
+            try {
+                data = text ? JSON.parse(text) : {};
+            } catch {
+                throw new Error('Payment service is unavailable. Please contact support.');
+            }
 
             if (!response.ok || !data.url) {
                 throw new Error(data.error || 'Failed to create payment session');
             }
 
-            // Redirect to Stripe Checkout
             window.location.href = data.url;
 
         } catch (error: any) {

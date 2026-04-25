@@ -89,12 +89,7 @@ export function useJobPipeline(jobId?: string | null) {
         supabase.from("jobs").select("id, title, status").eq("id", jobId).maybeSingle(),
         supabase
           .from("applications")
-          .select(
-            `
-            id, candidate_id, status, applied_at,
-            profiles!applications_candidate_id_fkey(full_name)
-          `,
-          )
+          .select("id, candidate_id, status, applied_at")
           .eq("job_id", jobId)
           .order("applied_at", { ascending: false }),
       ]);
@@ -111,7 +106,6 @@ export function useJobPipeline(jobId?: string | null) {
         candidate_id: string;
         status: string;
         applied_at: string;
-        profiles?: { full_name?: string | null } | Array<{ full_name?: string | null }>;
       }>;
 
       if (applications.length === 0) {
@@ -122,7 +116,8 @@ export function useJobPipeline(jobId?: string | null) {
       }
 
       const candidateIds = Array.from(new Set(applications.map((item) => item.candidate_id)));
-      const [candidateProfilesRes, scoresRes] = await Promise.all([
+      const [profilesRes, candidateProfilesRes, scoresRes] = await Promise.all([
+        supabase.from("profiles").select("id, full_name").in("id", candidateIds),
         supabase
           .from("candidate_profiles")
           .select("candidate_id, years_experience, skills")
@@ -141,7 +136,12 @@ export function useJobPipeline(jobId?: string | null) {
         console.error("[useJobPipeline] Score error:", scoresRes.error);
       }
 
-      const profileByCandidateId = new Map(
+      const fullNameById = new Map(
+        ((profilesRes.data || []) as Array<{ id: string; full_name: string | null }>)
+          .map((p) => [p.id, p.full_name]),
+      );
+
+      const candidateProfileById = new Map(
         (
           (candidateProfilesRes.data || []) as Array<{
             candidate_id: string;
@@ -161,16 +161,13 @@ export function useJobPipeline(jobId?: string | null) {
       return {
         job: jobRes.data ? { id: jobRes.data.id, title: jobRes.data.title, status: jobRes.data.status } : null,
         applications: applications.map((application) => {
-          const candidateProfile = profileByCandidateId.get(application.candidate_id);
-          const profileData = Array.isArray(application.profiles)
-            ? application.profiles[0]
-            : application.profiles;
+          const candidateProfile = candidateProfileById.get(application.candidate_id);
           return {
             id: application.id,
             candidateId: application.candidate_id,
             status: application.status,
             appliedAt: application.applied_at,
-            candidateName: profileData?.full_name || "Candidate",
+            candidateName: fullNameById.get(application.candidate_id) || "Candidate",
             yearsExperience: Number(candidateProfile?.years_experience || 0),
             skills: toStringArray(candidateProfile?.skills),
             aiMatchScore: maxScoreByCandidateId.get(application.candidate_id) || 0,

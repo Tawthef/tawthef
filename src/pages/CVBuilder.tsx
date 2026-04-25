@@ -147,7 +147,9 @@ const CVBuilder = () => {
     try {
       const raw = window.localStorage.getItem(localKey);
       if (raw) setPersonal((p) => ({ ...p, ...JSON.parse(raw) }));
-    } catch { }
+    } catch {
+      // Ignore invalid local drafts; server data remains the source of truth.
+    }
   }, [user, localKey]);
 
   useEffect(() => {

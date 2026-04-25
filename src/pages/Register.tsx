@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +18,7 @@ const OAUTH_ROLE_STORAGE_KEY = "tawthef:pending-oauth-role";
 
 const Register = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { signUp } = useAuth();
   const [step, setStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
@@ -27,6 +28,13 @@ const Register = () => {
   const [initialRole, setInitialRole] = useState<InitialRole | null>(null);
   const [recruiterType, setRecruiterType] = useState<RecruiterType | null>(null);
   const [formData, setFormData] = useState({ fullName: "", email: "", password: "", companyName: "", inviteCode: "" });
+
+  useEffect(() => {
+    if (searchParams.get("role") === "recruiter") {
+      setInitialRole("recruiter");
+      setStep(1.5);
+    }
+  }, []);
 
   // Get final role for backend
   const getFinalRole = (): UserRole => {

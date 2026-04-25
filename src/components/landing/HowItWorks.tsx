@@ -62,7 +62,7 @@ const HowItWorks = () => {
   const flow = activeTab === "agency" ? agencyFlow : directFlow;
 
   return (
-    <section id="how-it-works" className="py-24 lg:py-32 gradient-section-alt relative overflow-hidden">
+    <section id="how-it-works" className="py-16 lg:py-24 gradient-section-alt relative overflow-hidden">
 
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto text-center mb-16">
@@ -106,13 +106,21 @@ const HowItWorks = () => {
         </div>
 
         <div className="max-w-3xl mx-auto mb-10">
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 text-xs sm:text-sm text-muted-foreground">
-            <span className="rounded-full border border-border/60 bg-card/60 px-3 py-1">Agency Shortlisting</span>
-            <span className="text-muted-foreground/70">-&gt;</span>
-            <span className="rounded-full border border-border/60 bg-card/60 px-3 py-1">Employer Review</span>
-            <span className="text-muted-foreground/70">-&gt;</span>
-            <span className="rounded-full border border-border/60 bg-card/60 px-3 py-1">Hiring Decision</span>
-          </div>
+          {(() => {
+            const breadcrumbs = activeTab === "agency"
+              ? ["Agency Shortlisting", "Employer Review", "Hiring Decision"]
+              : ["HR Shortlisting", "Technical Review", "Hiring Decision"];
+            return (
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 text-xs sm:text-sm text-muted-foreground">
+                {breadcrumbs.map((label, i) => (
+                  <span key={label} className="flex items-center gap-2 sm:gap-3">
+                    <span className="rounded-full border border-border/60 bg-card/60 px-3 py-1">{label}</span>
+                    {i < breadcrumbs.length - 1 && <span className="text-muted-foreground/70">-&gt;</span>}
+                  </span>
+                ))}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Flow diagram */}

@@ -21,8 +21,6 @@ const Navbar = () => {
     { name: "Jobs", href: "/jobs" },
     { name: "Features", href: "#intelligence" },
     { name: "How It Works", href: "#how-it-works" },
-    { name: "Pricing", href: "#pricing" },
-    { name: "For Recruiters", href: "#recruiters" },
   ];
 
   return (
@@ -51,6 +49,12 @@ const Navbar = () => {
                 {link.name}
               </a>
             ))}
+            <Link
+              to="/register?role=recruiter"
+              className="px-3 py-1 text-[13px] font-medium text-foreground/70 hover:text-foreground transition-colors rounded-md hover:bg-muted/40"
+            >
+              For Recruiters
+            </Link>
           </div>
 
           {/* Desktop CTA */}
@@ -87,6 +91,13 @@ const Navbar = () => {
                   {link.name}
                 </a>
               ))}
+              <Link
+                to="/register?role=recruiter"
+                className="px-4 py-3.5 text-base font-medium text-muted-foreground hover:text-foreground hover:bg-muted/30 rounded-xl transition-colors"
+                onClick={() => setIsOpen(false)}
+              >
+                For Recruiters
+              </Link>
               <div className="flex flex-col gap-3 pt-6 mt-4 border-t border-border/30">
                 <Link to="/login" onClick={() => setIsOpen(false)}>
                   <Button variant="ghost" className="w-full font-medium">Sign In</Button>

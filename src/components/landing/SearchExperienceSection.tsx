@@ -1,234 +1,142 @@
-import { useState, useRef, useEffect } from "react";
-import { Search, Sparkles, Check } from "lucide-react";
+import { Lock, MapPin, Sparkles, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Link } from "react-router-dom";
 
-const placeholderExamples = [
-  "Senior React Developer, 5+ years experience",
-  "ML Engineer with PyTorch expertise",
-  "Product Manager, fintech background",
-  "DevOps Lead, Kubernetes certified",
-  "UX Designer with enterprise SaaS experience",
+interface DemoCandidate {
+  skills: string[];
+  matchedSkills: string[];
+  missingSkills: string[];
+  experience: number;
+  location: string;
+  matchScore: number;
+}
+
+const DEMO_CANDIDATES: DemoCandidate[] = [
+  {
+    skills: ["React", "TypeScript", "Node.js", "GraphQL"],
+    matchedSkills: ["React", "TypeScript"],
+    missingSkills: ["GraphQL"],
+    experience: 6,
+    location: "Dubai, UAE",
+    matchScore: 87,
+  },
+  {
+    skills: ["Python", "Django", "AWS", "PostgreSQL"],
+    matchedSkills: ["Python", "Django"],
+    missingSkills: ["AWS"],
+    experience: 4,
+    location: "Riyadh, KSA",
+    matchScore: 74,
+  },
+  {
+    skills: ["Product Management", "Agile", "JIRA", "Roadmapping"],
+    matchedSkills: ["Product Management"],
+    missingSkills: [],
+    experience: 8,
+    location: "Abu Dhabi, UAE",
+    matchScore: 62,
+  },
 ];
 
-const exampleQueries = [
-  "React Developer",
-  "Product Manager",
-  "UX Designer",
-];
-
-const searchChips = [
-  "Remote OK",
-  "5+ Years",
-  "Senior Level",
-  "Full-time",
-  "Tech Lead",
-  "Startup Experience",
-];
+const scoreClass = (score: number) => {
+  if (score > 80) return "bg-green-500/10 text-green-600 border-green-500/30";
+  if (score >= 60) return "bg-primary/10 text-primary border-primary/30";
+  return "bg-muted text-muted-foreground border-border";
+};
 
 const SearchExperienceSection = () => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedChips, setSelectedChips] = useState<string[]>([]);
-  const [showFeedback, setShowFeedback] = useState(false);
-  const [placeholderIndex, setPlaceholderIndex] = useState(0);
-  const [isVisible, setIsVisible] = useState(false);
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
-  const sectionRef = useRef<HTMLElement>(null);
-
-  // Detect reduced motion preference
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setPrefersReducedMotion(mediaQuery.matches);
-
-    const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
-    mediaQuery.addEventListener('change', handler);
-    return () => mediaQuery.removeEventListener('change', handler);
-  }, []);
-
-  // IntersectionObserver for reveal animation
-  useEffect(() => {
-    if (!('IntersectionObserver' in window)) {
-      setIsVisible(true); // Fallback: show immediately
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-        }
-      },
-      { threshold: 0.3 }
-    );
-
-    if (sectionRef.current) {
-      observer.observe(sectionRef.current);
-    }
-
-    return () => observer.disconnect();
-  }, []);
-
-  const toggleChip = (chip: string) => {
-    if (selectedChips.includes(chip)) {
-      setSelectedChips(selectedChips.filter(c => c !== chip));
-    } else {
-      setSelectedChips([...selectedChips, chip]);
-      // Show brief feedback
-      setShowFeedback(true);
-      setTimeout(() => setShowFeedback(false), 1500);
-    }
-  };
-
-  const handleSearch = () => {
-    if (searchQuery.trim() || selectedChips.length > 0) {
-      setShowFeedback(true);
-      setTimeout(() => setShowFeedback(false), 2000);
-    }
-  };
-
-  // Rotate placeholder
-  const handleFocus = () => {
-    setPlaceholderIndex((prev) => (prev + 1) % placeholderExamples.length);
-  };
-
   return (
-    <section ref={sectionRef} className="relative py-12 lg:py-16 overflow-hidden">
+    <section className="relative py-12 lg:py-16 overflow-hidden">
       <div
-        className={`
-            absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
-            w-[800px] h-[800px] max-w-[90vw] max-h-[90vw]
-            rounded-full
-            transition-all ease-out
-            ${prefersReducedMotion ? 'duration-300' : 'duration-[1500ms]'}
-            ${isVisible ? 'scale-100 opacity-100' : 'scale-50 opacity-0'}
-          `}
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] max-w-[90vw] max-h-[90vw] rounded-full"
         style={{
-          background: 'radial-gradient(circle at center, hsl(var(--primary) / 0.04), transparent 70%)',
-          zIndex: 0
+          background: "radial-gradient(circle at center, hsl(var(--primary) / 0.04), transparent 70%)",
+          zIndex: 0,
         }}
       />
 
-      {/* Content - above reveal circle */}
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div
-          className={`
-            max-w-3xl mx-auto
-            transition-opacity ease-out
-            ${prefersReducedMotion ? 'duration-300' : 'duration-[1200ms] transition-all'}
-            ${isVisible ? 'opacity-100' : 'opacity-0'}
-            ${!prefersReducedMotion && (isVisible ? 'translate-y-0' : 'translate-y-8')}
-          `}
-          style={{ transitionDelay: isVisible ? (prefersReducedMotion ? '0ms' : '200ms') : '0ms' }}
-        >
-          {/* Section header */}
+        <div className="max-w-4xl mx-auto">
           <div className="text-center mb-10">
             <div className="inline-flex items-center gap-2 bg-primary/10 rounded-full px-4 py-1.5 mb-6 border border-primary/20">
               <Sparkles className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium text-primary">Explore Intelligence</span>
+              <span className="text-sm font-medium text-primary">Resume Search</span>
             </div>
             <h2 className="text-headline text-foreground mb-4 tracking-tight">
-              Search Your Way
+              Find Your Next Hire
             </h2>
             <p className="text-subhead max-w-xl mx-auto leading-relaxed">
-              Describe your ideal candidate naturally. Our AI understands context, not just keywords.
+              Search qualified candidates by skills, experience, and location. Subscribe to unlock full profiles and contact details.
             </p>
           </div>
 
-          {/* Search container */}
-          <div className="relative">
-            {/* Helper text */}
-            <p className="text-center text-sm text-foreground/70 mb-4 font-medium">
-              Try searching like a recruiter would.
-            </p>
-
-            {/* Search card - High Contrast */}
-            <div className="card-premium p-3 sm:p-5 border-border/60 shadow-xl">
-              {/* Search input row */}
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="relative flex-1">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onFocus={handleFocus}
-                    placeholder={placeholderExamples[placeholderIndex]}
-                    className="w-full h-14 sm:h-16 pl-12 pr-4 bg-white border border-border/80 rounded-xl text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 transition-all text-base shadow-inner"
-                  />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            {DEMO_CANDIDATES.map((candidate, idx) => (
+              <div
+                key={idx}
+                className="rounded-2xl border border-border/50 bg-card p-5 space-y-4 shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                      <Lock className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-muted-foreground/50 text-sm select-none">Hidden Candidate</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                        <MapPin className="w-3 h-3" />
+                        {candidate.location}
+                      </p>
+                    </div>
+                  </div>
+                  <Badge className={`border text-xs shrink-0 ${scoreClass(candidate.matchScore)}`}>
+                    {candidate.matchScore}%
+                  </Badge>
                 </div>
-                <Button
-                  onClick={handleSearch}
-                  className="h-14 sm:h-16 px-6 sm:px-8 bg-primary hover:bg-primary/90 hover:scale-[1.02] text-primary-foreground rounded-xl font-semibold shadow-lg shadow-primary/25 text-base transition-all"
-                >
-                  <span className="hidden sm:inline">Search</span>
-                  <Search className="w-5 h-5 sm:ml-2" />
-                </Button>
-              </div>
 
-              {/* Example query chips - autofill on click */}
-              <div className="flex flex-wrap gap-2.5 mt-5 px-1">
-                <span className="text-xs text-muted-foreground mr-1 self-center font-medium">Examples:</span>
-                {exampleQueries.map((query) => (
-                  <button
-                    key={query}
-                    onClick={() => {
-                      setSearchQuery(query);
-                      setShowFeedback(true);
-                      setTimeout(() => setShowFeedback(false), 1500);
-                    }}
-                    className="px-3 py-1.5 rounded-full text-sm font-medium bg-muted/70 text-foreground/80 hover:bg-muted hover:text-foreground transition-all border border-transparent hover:border-border/50"
-                  >
-                    {query}
-                  </button>
-                ))}
-              </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1.5">{candidate.experience} yrs experience</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {candidate.skills.map((skill) => (
+                      <Badge key={skill} variant="outline" className="text-xs px-2 py-0">{skill}</Badge>
+                    ))}
+                  </div>
+                </div>
 
-              {/* Suggestion chips */}
-              <div className="flex flex-wrap gap-2.5 mt-4 px-1">
-                {searchChips.map((chip) => {
-                  const isSelected = selectedChips.includes(chip);
-                  return (
-                    <button
-                      key={chip}
-                      onClick={() => toggleChip(chip)}
-                      className={`
-                        inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200
-                        ${isSelected
-                          ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
-                          : 'bg-secondary/80 text-secondary-foreground hover:bg-secondary border border-transparent hover:border-border/30'
-                        }
-                      `}
-                    >
-                      {isSelected && <Check className="w-3.5 h-3.5" />}
-                      {chip}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+                {candidate.matchedSkills.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {candidate.matchedSkills.map((skill) => (
+                      <Badge key={skill} className="bg-green-500/10 text-green-600 border-green-500/30 text-xs px-2 py-0">{skill}</Badge>
+                    ))}
+                  </div>
+                )}
 
-            {/* Feedback message */}
-            <div
-              className={`
-                absolute -bottom-16 left-1/2 -translate-x-1/2 
-                flex items-center gap-2 bg-card border border-border/50 rounded-full px-5 py-2.5 shadow-lg
-                transition-all duration-300
-                ${showFeedback ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'}
-              `}
-            >
-              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-              <span className="text-sm text-foreground/80">
-                {selectedChips.length > 0
-                  ? `${selectedChips.length} filter${selectedChips.length > 1 ? 's' : ''} applied`
-                  : 'Analyzing context...'
-                }
-              </span>
-            </div>
+                <div className="flex gap-2 pt-1">
+                  <div className="flex-1 h-8 rounded-lg bg-muted/60 flex items-center justify-center gap-1.5 text-xs text-muted-foreground border border-border/40">
+                    <Lock className="w-3 h-3" />
+                    Profile
+                  </div>
+                  <div className="flex-1 h-8 rounded-lg bg-muted/60 flex items-center justify-center gap-1.5 text-xs text-muted-foreground border border-border/40">
+                    <Lock className="w-3 h-3" />
+                    CV
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
 
-          {/* Helper text */}
-          <p className="text-center text-sm text-muted-foreground/60 mt-20">
-            No login required. This is an exploratory search to demonstrate AI intelligence.
-          </p>
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground mb-4">
+              Subscribe to Resume Search to unlock candidate names, CVs, and contact details.
+            </p>
+            <Link to="/pricing">
+              <Button size="lg" className="shadow-lg shadow-primary/20">
+                View Plans
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
     </section>
@@ -236,6 +144,3 @@ const SearchExperienceSection = () => {
 };
 
 export default SearchExperienceSection;
-
-
-

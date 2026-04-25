@@ -1,13 +1,12 @@
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import HeroSection from "@/components/landing/HeroSection";
-import IntelligenceFocusSection from "@/components/landing/IntelligenceFocusSection";
-import SearchExperienceSection from "@/components/landing/SearchExperienceSection";
 import WhatIsTawthef from "@/components/landing/WhatIsTawthef";
+import FeatureHighlightsSection from "@/components/landing/FeatureHighlightsSection";
 import HowItWorks from "@/components/landing/HowItWorks";
+import SearchExperienceSection from "@/components/landing/SearchExperienceSection";
 import BenefitsSection from "@/components/landing/BenefitsSection";
-import CTASection from "@/components/landing/CTASection";
-import SocialProofSection from "@/components/landing/SocialProofSection";
+import FaqSection from "@/components/landing/FaqSection";
 
 const Index = () => {
   return (
@@ -15,13 +14,12 @@ const Index = () => {
       <Navbar />
       <main>
         <HeroSection />
-        <IntelligenceFocusSection />
-        <SearchExperienceSection />
         <WhatIsTawthef />
+        <FeatureHighlightsSection />
         <HowItWorks />
+        <SearchExperienceSection />
         <BenefitsSection />
-        <CTASection />
-        <SocialProofSection />
+        <FaqSection />
       </main>
       <Footer />
     </div>

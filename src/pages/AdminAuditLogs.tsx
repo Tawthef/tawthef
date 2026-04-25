@@ -45,13 +45,9 @@ const formatDateTime = (value: string) =>
 const prettifyAction = (value: string) => value.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 
 const AdminAuditLogs = () => {
-  const { profile } = useProfile();
+  const { profile, isLoading: isProfileLoading } = useProfile();
   const [search, setSearch] = useState("");
   const [actionFilter, setActionFilter] = useState("all");
-
-  if (profile?.role !== "admin") {
-    return <Navigate to="/dashboard" replace />;
-  }
 
   const { data: logs = [], isLoading } = useQuery({
     queryKey: ["admin-audit-logs"],
@@ -108,6 +104,7 @@ const AdminAuditLogs = () => {
           : "Global",
       }));
     },
+    enabled: profile?.role === "admin",
     staleTime: 60 * 1000,
   });
 
@@ -135,6 +132,18 @@ const AdminAuditLogs = () => {
       return haystack.includes(needle);
     });
   }, [logs, search, actionFilter]);
+
+  if (isProfileLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (profile?.role !== "admin") {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return (
     <DashboardLayout>

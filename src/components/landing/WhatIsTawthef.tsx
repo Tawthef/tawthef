@@ -18,7 +18,7 @@ const WhatIsTawthef = () => {
     },
     {
       icon: Building,
-      title: "Multi-Tenant Isolation",
+      title: "Private Workspaces",
       description: "Protect company data with strict workspace separation and role-based access.",
       gradient: "from-[hsl(255,60%,55%)]/15 to-[hsl(255,60%,55%)]/5",
       iconColor: "text-[hsl(255,60%,55%)]",
@@ -49,10 +49,10 @@ const WhatIsTawthef = () => {
           {features.map((feature, index) => (
             <div
               key={feature.title}
-              className="group card-float p-10 lg:p-12 hover:-translate-y-1 transition-transform"
+              className="group card-float p-7 lg:p-8 hover:-translate-y-1 transition-transform"
               style={{ animationDelay: `${index * 0.1}s` }}
             >
-              <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-500`}>
+              <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-500`}>
                 <feature.icon className={`w-8 h-8 ${feature.iconColor} opacity-90 group-hover:opacity-100 transition-all`} />
               </div>
               <h3 className="text-xl lg:text-2xl font-semibold text-foreground mb-4">

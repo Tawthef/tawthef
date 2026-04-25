@@ -159,9 +159,9 @@ export function useRecruiterCandidateContacts(enabled: boolean) {
     queryFn: async (): Promise<CandidateContact[]> => {
       if (!enabled || !user?.id) return [];
 
-      const { data, error } = await supabase
+      const { data: apps, error } = await supabase
         .from("applications")
-        .select("candidate_id, profiles!applications_candidate_id_fkey(id, full_name)")
+        .select("candidate_id")
         .order("applied_at", { ascending: false })
         .limit(500);
 
@@ -170,16 +170,17 @@ export function useRecruiterCandidateContacts(enabled: boolean) {
         return [];
       }
 
-      const contacts = new Map<string, CandidateContact>();
-      for (const row of data || []) {
-        const candidateId = (row as any)?.candidate_id as string | undefined;
-        const profile = (row as any)?.profiles as { id?: string; full_name?: string | null } | null;
-        if (!candidateId || contacts.has(candidateId)) continue;
+      const candidateIds = Array.from(new Set((apps || []).map((r: any) => r.candidate_id as string)));
+      if (candidateIds.length === 0) return [];
 
-        contacts.set(candidateId, {
-          id: candidateId,
-          fullName: profile?.full_name || "Candidate",
-        });
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", candidateIds);
+
+      const contacts = new Map<string, CandidateContact>();
+      for (const p of profiles || []) {
+        contacts.set(p.id, { id: p.id, fullName: (p as any).full_name || "Candidate" });
       }
 
       return Array.from(contacts.values());

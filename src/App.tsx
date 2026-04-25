@@ -2,67 +2,76 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import AccountSetup from "./pages/AccountSetup";
-import Dashboard from "./pages/Dashboard";
-import Jobs from "./pages/Jobs";
-import JobReport from "./pages/JobReport";
-import Pricing from "./pages/Pricing";
-import Billing from "./pages/Billing";
-import Candidates from "./pages/Candidates";
-import Applications from "./pages/Applications";
-import Profile from "./pages/Profile";
-import Settings from "./pages/Settings";
-import Analytics from "./pages/Analytics";
-import Pipeline from "./pages/Pipeline";
-import AgencySubmissions from "./pages/AgencySubmissions";
-import TechnicalReviews from "./pages/TechnicalReviews";
-import Interviews from "./pages/Interviews";
-import Offers from "./pages/Offers";
-import RankedCandidates from "./pages/RankedCandidates";
-import JobMatchedCandidates from "./pages/JobMatchedCandidates";
-import MyJobMatches from "./pages/MyJobMatches";
-import CVBuilder from "./pages/CVBuilder";
-import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 import RoleProtectedRoute from "./components/RoleProtectedRoute";
-import Reports from "./pages/Reports";
-import FeaturePlaceholder from "./pages/FeaturePlaceholder";
 import { CookieConsent } from "./components/privacy/CookieConsent";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import CookiePolicy from "./pages/CookiePolicy";
-import TalentSearch from "./pages/TalentSearch";
-import ResumeSearch from "./pages/ResumeSearch";
-import AdminOverview from "./pages/AdminOverview";
-import AdminUsers from "./pages/admin/AdminUsers";
-import AdminOrganizations from "./pages/admin/AdminOrganizations";
-import AdminJobs from "./pages/admin/AdminJobs";
-import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
-import AdminInviteCodes from "./pages/admin/AdminInviteCodes";
-import AdminAnalytics from "./pages/admin/AdminAnalytics";
-import AdminAuditLogs from "./pages/admin/AdminAuditLogs";
-import AdminRecruiterVerification from "./pages/admin/AdminRecruiterVerification";
-import AdminNotifications from "./pages/admin/AdminNotifications";
-import AdminBilling from "./pages/admin/AdminBilling";
-import AdminPlatformSettings from "./pages/admin/AdminPlatformSettings";
-import AdminLogin from "./pages/AdminLogin";
-import PaymentSuccess from "./pages/PaymentSuccess";
-import PaymentCancel from "./pages/PaymentCancel";
-import NotificationsPage from "./pages/NotificationsPage";
-import MessagesPage from "./pages/MessagesPage";
-import TalentPools from "./pages/TalentPools";
-import CandidateProfilePage from "./pages/CandidateProfilePage";
-import PublicJobs from "./pages/PublicJobs";
-import PublicJobDetails from "./pages/PublicJobDetails";
-import JobPipeline from "./pages/JobPipeline";
-import WelcomeShare from "./pages/WelcomeShare";
-import RecruiterVerification from "./pages/RecruiterVerification";
-import BannerPreviewDemo from "./pages/BannerPreviewDemo";
+
+const Index = lazy(() => import("./pages/Index"));
+const Login = lazy(() => import("./pages/Login"));
+const Register = lazy(() => import("./pages/Register"));
+const AccountSetup = lazy(() => import("./pages/AccountSetup"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Jobs = lazy(() => import("./pages/Jobs"));
+const JobReport = lazy(() => import("./pages/JobReport"));
+const Pricing = lazy(() => import("./pages/Pricing"));
+const Billing = lazy(() => import("./pages/Billing"));
+const Candidates = lazy(() => import("./pages/Candidates"));
+const Applications = lazy(() => import("./pages/Applications"));
+const Profile = lazy(() => import("./pages/Profile"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Analytics = lazy(() => import("./pages/Analytics"));
+const Pipeline = lazy(() => import("./pages/Pipeline"));
+const AgencySubmissions = lazy(() => import("./pages/AgencySubmissions"));
+const TechnicalReviews = lazy(() => import("./pages/TechnicalReviews"));
+const Interviews = lazy(() => import("./pages/Interviews"));
+const Offers = lazy(() => import("./pages/Offers"));
+const RankedCandidates = lazy(() => import("./pages/RankedCandidates"));
+const JobMatchedCandidates = lazy(() => import("./pages/JobMatchedCandidates"));
+const MyJobMatches = lazy(() => import("./pages/MyJobMatches"));
+const CVBuilder = lazy(() => import("./pages/CVBuilder"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const Reports = lazy(() => import("./pages/Reports"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const CookiePolicy = lazy(() => import("./pages/CookiePolicy"));
+const TalentSearch = lazy(() => import("./pages/TalentSearch"));
+const ResumeSearch = lazy(() => import("./pages/ResumeSearch"));
+const AdminOverview = lazy(() => import("./pages/AdminOverview"));
+const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
+const AdminOrganizations = lazy(() => import("./pages/admin/AdminOrganizations"));
+const AdminJobs = lazy(() => import("./pages/admin/AdminJobs"));
+const AdminSubscriptions = lazy(() => import("./pages/admin/AdminSubscriptions"));
+const AdminInviteCodes = lazy(() => import("./pages/admin/AdminInviteCodes"));
+const AdminAnalytics = lazy(() => import("./pages/admin/AdminAnalytics"));
+const AdminAuditLogs = lazy(() => import("./pages/admin/AdminAuditLogs"));
+const AdminRecruiterVerification = lazy(() => import("./pages/admin/AdminRecruiterVerification"));
+const AdminNotifications = lazy(() => import("./pages/admin/AdminNotifications"));
+const AdminBilling = lazy(() => import("./pages/admin/AdminBilling"));
+const AdminPlatformSettings = lazy(() => import("./pages/admin/AdminPlatformSettings"));
+const AdminLogin = lazy(() => import("./pages/AdminLogin"));
+const PaymentSuccess = lazy(() => import("./pages/PaymentSuccess"));
+const PaymentCancel = lazy(() => import("./pages/PaymentCancel"));
+const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
+const MessagesPage = lazy(() => import("./pages/MessagesPage"));
+const TalentPools = lazy(() => import("./pages/TalentPools"));
+const CandidateProfilePage = lazy(() => import("./pages/CandidateProfilePage"));
+const PublicJobs = lazy(() => import("./pages/PublicJobs"));
+const PublicJobDetails = lazy(() => import("./pages/PublicJobDetails"));
+const JobPipeline = lazy(() => import("./pages/JobPipeline"));
+const WelcomeShare = lazy(() => import("./pages/WelcomeShare"));
+const RecruiterVerification = lazy(() => import("./pages/RecruiterVerification"));
+const BannerPreviewDemo = lazy(() => import("./pages/BannerPreviewDemo"));
+const CandidateSharePage = lazy(() => import("./pages/CandidateSharePage"));
+const ClientReviewPage = lazy(() => import("./pages/ClientReviewPage"));
 
 const queryClient = new QueryClient();
+
+const RouteFallback = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+  </div>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -70,7 +79,8 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
+        <Suspense fallback={<RouteFallback />}>
+          <Routes>
           {/* Public routes */}
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
@@ -84,6 +94,8 @@ const App = () => (
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/payment/cancel" element={<PaymentCancel />} />
           <Route path="/preview/share" element={<BannerPreviewDemo />} />
+          <Route path="/share/candidate/:token" element={<CandidateSharePage />} />
+          <Route path="/review/job/:token" element={<ClientReviewPage />} />
 
           {/* Protected routes - require authentication */}
           {/* Base Protected Routes (Authenticated & Profile exists) */}
@@ -149,13 +161,11 @@ const App = () => (
             <Route element={<RoleProtectedRoute allowedRoles={['employer']} />}>
               <Route path="/dashboard/rankings" element={<RankedCandidates />} />
               <Route path="/dashboard/ai-matches" element={<JobMatchedCandidates />} />
-              <Route path="/dashboard/team" element={<FeaturePlaceholder title="Team Management" description="Manage your hiring team and permissions." />} />
             </Route>
 
             {/* Agency Only */}
             <Route element={<RoleProtectedRoute allowedRoles={['agency']} />}>
               <Route path="/dashboard/submissions" element={<AgencySubmissions />} />
-              <Route path="/dashboard/agencies" element={<FeaturePlaceholder title="Agency Network" description="Manage partner agencies and recruiters." />} />
             </Route>
 
             {/* Employer + Agency: Job Pipeline Kanban */}
@@ -184,12 +194,12 @@ const App = () => (
               <Route path="/dashboard/admin/notifications" element={<AdminNotifications />} />
               <Route path="/dashboard/admin/billing" element={<AdminBilling />} />
               <Route path="/dashboard/admin/settings" element={<AdminPlatformSettings />} />
-              <Route path="/dashboard/tenants" element={<FeaturePlaceholder title="Tenant Management" description="Manage platform recruiters and workspaces." />} />
             </Route>
           </Route>
 
           <Route path="*" element={<NotFound />} />
-        </Routes>
+          </Routes>
+        </Suspense>
         <CookieConsent />
       </BrowserRouter>
     </TooltipProvider>

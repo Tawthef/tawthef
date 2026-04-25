@@ -3,13 +3,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Briefcase, Loader2, CheckCircle, XCircle, Clock, Send, Building2 } from "lucide-react";
+import { Search, Briefcase, Loader2, CheckCircle, XCircle, Clock, Send, Building2, ExternalLink } from "lucide-react";
 import { useAgencyApplications } from "@/hooks/useAgencyApplications";
 import { useJobs } from "@/hooks/useJobs";
 import { useProfile } from "@/hooks/useProfile";
 import { useUpdateApplicationStatus, getAllowedTransitions } from "@/hooks/useUpdateApplicationStatus";
 import StatusProgressBar from "@/components/StatusProgressBar";
 import { useState } from "react";
+import { SubmitCandidateModal } from "@/components/agency/SubmitCandidateModal";
+import { GenerateClientLinkModal } from "@/components/jobs/GenerateClientLinkModal";
+import { Job } from "@/hooks/useJobs";
 
 const statusConfig: Record<string, { label: string; className: string }> = {
     "applied": { label: "Pending Review", className: "bg-muted text-muted-foreground" },
@@ -36,6 +39,8 @@ const AgencySubmissions = () => {
     const { profile } = useProfile();
     const { updateStatus, isUpdating } = useUpdateApplicationStatus();
     const [updatingId, setUpdatingId] = useState<string | null>(null);
+    const [submitJob, setSubmitJob] = useState<Job | null>(null);
+    const [reviewJob, setReviewJob] = useState<Job | null>(null);
 
     const isAgency = profile?.role === 'agency';
     const role = profile?.role || '';
@@ -94,9 +99,13 @@ const AgencySubmissions = () => {
                                                         {job.organization_name}
                                                     </p>
                                                 )}
-                                                <Button variant="outline" size="sm" className="w-full rounded-lg" disabled>
+                                                <Button variant="outline" size="sm" className="w-full rounded-lg" onClick={() => setSubmitJob(job)}>
                                                     <Send className="w-4 h-4 mr-2" />
                                                     Submit Candidate
+                                                </Button>
+                                                <Button variant="ghost" size="sm" className="w-full rounded-lg text-muted-foreground" onClick={() => setReviewJob(job)}>
+                                                    <ExternalLink className="w-4 h-4 mr-2" />
+                                                    Share with Client
                                                 </Button>
                                             </div>
                                         </CardContent>
@@ -229,6 +238,21 @@ const AgencySubmissions = () => {
                     </div>
                 )}
             </div>
+
+            {submitJob && (
+                <SubmitCandidateModal
+                    open={!!submitJob}
+                    onOpenChange={(open) => { if (!open) setSubmitJob(null); }}
+                    job={submitJob}
+                />
+            )}
+            {reviewJob && (
+                <GenerateClientLinkModal
+                    open={!!reviewJob}
+                    onOpenChange={(open) => { if (!open) setReviewJob(null); }}
+                    job={reviewJob}
+                />
+            )}
         </DashboardLayout>
     );
 };

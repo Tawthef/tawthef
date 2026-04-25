@@ -109,11 +109,11 @@ export function useTalentPools() {
   });
 }
 
-export function useTalentPoolCandidates(poolId: string | null) {
+export function useTalentPoolCandidates(poolId: string | null, jobId?: string | null) {
   const { user } = useAuth();
 
   return useQuery({
-    queryKey: ["talent-pool-candidates", user?.id, poolId],
+    queryKey: ["talent-pool-candidates", user?.id, poolId, jobId ?? null],
     queryFn: async (): Promise<TalentPoolCandidate[]> => {
       if (!user?.id || !poolId) return [];
 
@@ -138,19 +138,16 @@ export function useTalentPoolCandidates(poolId: string | null) {
 
       const candidateIds = Array.from(new Set(poolCandidates.map((item) => item.candidate_id)));
 
+      let scoresQuery = supabase
+        .from("candidate_job_scores")
+        .select("candidate_id, score")
+        .in("candidate_id", candidateIds);
+      if (jobId) scoresQuery = scoresQuery.eq("job_id", jobId);
+
       const [profilesRes, candidateProfilesRes, scoresRes] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("id, full_name")
-          .in("id", candidateIds),
-        supabase
-          .from("candidate_profiles")
-          .select("candidate_id, years_experience, skills")
-          .in("candidate_id", candidateIds),
-        supabase
-          .from("candidate_job_scores")
-          .select("candidate_id, score")
-          .in("candidate_id", candidateIds),
+        supabase.from("profiles").select("id, full_name").in("id", candidateIds),
+        supabase.from("candidate_profiles").select("candidate_id, years_experience, skills").in("candidate_id", candidateIds),
+        scoresQuery,
       ]);
 
       if (profilesRes.error) console.error("[useTalentPoolCandidates] Profile error:", profilesRes.error);

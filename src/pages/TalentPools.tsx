@@ -2,8 +2,17 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
@@ -22,7 +31,10 @@ import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Check,
+  ChevronsUpDown,
+  ExternalLink,
   Loader2,
+  PencilLine,
   Plus,
   Sparkles,
   Trash2,
@@ -30,9 +42,8 @@ import {
   UserPlus,
   Users,
   X,
-  PencilLine,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 const scoreClass = (score: number) => {
   if (score >= 80) return "bg-success/10 text-success border-success/30";
@@ -49,26 +60,23 @@ const TalentPools = () => {
   const { data: pools = [], isLoading: isPoolsLoading } = useTalentPools();
   const { data: recruiterCandidates = [] } = useRecruiterCandidateDirectory(profile?.role);
   const [selectedPoolId, setSelectedPoolId] = useState<string | null>(null);
-  const { data: poolCandidates = [], isLoading: isPoolCandidatesLoading } = useTalentPoolCandidates(selectedPoolId);
+  const [selectedJobId, setSelectedJobId] = useState("");
+  const { data: poolCandidates = [], isLoading: isPoolCandidatesLoading } = useTalentPoolCandidates(selectedPoolId, selectedJobId || null);
   const {
-    createPool,
-    isCreatingPool,
-    renamePool,
-    isRenamingPool,
-    deletePool,
-    isDeletingPool,
-    addCandidateToPool,
-    isAddingCandidate,
-    removeCandidateFromPool,
-    isRemovingCandidate,
+    createPool, isCreatingPool,
+    renamePool, isRenamingPool,
+    deletePool, isDeletingPool,
+    addCandidateToPool, isAddingCandidate,
+    removeCandidateFromPool, isRemovingCandidate,
   } = useTalentPoolActions();
 
   const [newPoolName, setNewPoolName] = useState("");
   const [editingPoolId, setEditingPoolId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [selectedCandidateToAdd, setSelectedCandidateToAdd] = useState("");
-  const [selectedJobId, setSelectedJobId] = useState("");
+  const [candidateComboOpen, setCandidateComboOpen] = useState(false);
   const [candidateActionId, setCandidateActionId] = useState<string | null>(null);
+  const [isInvitingAll, setIsInvitingAll] = useState(false);
 
   const selectedPool = useMemo(
     () => pools.find((pool) => pool.id === selectedPoolId) || null,
@@ -77,35 +85,27 @@ const TalentPools = () => {
 
   const openJobs = useMemo(() => jobs.filter((job) => job.status === "open"), [jobs]);
 
-  useEffect(() => {
-    if (!selectedPoolId && pools.length > 0) {
-      setSelectedPoolId(pools[0].id);
-      return;
-    }
+  const selectedCandidateName = useMemo(
+    () => recruiterCandidates.find((c) => c.candidateId === selectedCandidateToAdd)?.fullName || "",
+    [recruiterCandidates, selectedCandidateToAdd]
+  );
 
-    if (selectedPoolId && !pools.some((pool) => pool.id === selectedPoolId)) {
-      setSelectedPoolId(pools[0]?.id || null);
-    }
+  // Auto-select first pool
+  useMemo(() => {
+    if (!selectedPoolId && pools.length > 0) setSelectedPoolId(pools[0].id);
+    if (selectedPoolId && !pools.some((p) => p.id === selectedPoolId)) setSelectedPoolId(pools[0]?.id || null);
   }, [pools, selectedPoolId]);
 
   const handleCreatePool = async () => {
     const poolName = newPoolName.trim();
     if (!poolName) return;
-
     try {
-      const createdPoolId = await createPool(poolName);
+      const id = await createPool(poolName);
       setNewPoolName("");
-      setSelectedPoolId(createdPoolId);
-      toast({
-        title: "Pool created",
-        description: `“${poolName}” is ready.`,
-      });
+      setSelectedPoolId(id);
+      toast({ title: "Pool created", description: `"${poolName}" is ready.` });
     } catch (error: any) {
-      toast({
-        title: "Create failed",
-        description: error?.message || "Could not create pool.",
-        variant: "destructive",
-      });
+      toast({ title: "Create failed", description: error?.message || "Could not create pool.", variant: "destructive" });
     }
   };
 
@@ -117,70 +117,38 @@ const TalentPools = () => {
   const handleRenamePool = async (poolId: string) => {
     const targetName = renameValue.trim();
     if (!targetName) return;
-
     try {
       await renamePool({ poolId, name: targetName });
       setEditingPoolId(null);
       setRenameValue("");
-      toast({
-        title: "Pool renamed",
-        description: "Pool name updated successfully.",
-      });
+      toast({ title: "Pool renamed" });
     } catch (error: any) {
-      toast({
-        title: "Rename failed",
-        description: error?.message || "Could not rename this pool.",
-        variant: "destructive",
-      });
+      toast({ title: "Rename failed", description: error?.message, variant: "destructive" });
     }
   };
 
   const handleDeletePool = async (poolId: string, name: string) => {
-    const confirmed = window.confirm(`Delete pool "${name}"? This will remove all candidates from it.`);
-    if (!confirmed) return;
-
+    if (!window.confirm(`Delete pool "${name}"? This will remove all candidates from it.`)) return;
     try {
       await deletePool(poolId);
-      toast({
-        title: "Pool deleted",
-        description: `"${name}" has been removed.`,
-      });
+      toast({ title: "Pool deleted", description: `"${name}" has been removed.` });
     } catch (error: any) {
-      toast({
-        title: "Delete failed",
-        description: error?.message || "Could not delete this pool.",
-        variant: "destructive",
-      });
+      toast({ title: "Delete failed", description: error?.message, variant: "destructive" });
     }
   };
 
   const handleAddCandidateToPool = async () => {
     if (!selectedPoolId || !selectedCandidateToAdd) return;
-
     if (poolCandidates.some((item) => item.candidateId === selectedCandidateToAdd)) {
-      toast({
-        title: "Already in pool",
-        description: "This candidate is already in the selected pool.",
-      });
+      toast({ title: "Already in pool", description: "This candidate is already in this pool." });
       return;
     }
-
     try {
-      await addCandidateToPool({
-        poolId: selectedPoolId,
-        candidateId: selectedCandidateToAdd,
-      });
+      await addCandidateToPool({ poolId: selectedPoolId, candidateId: selectedCandidateToAdd });
       setSelectedCandidateToAdd("");
-      toast({
-        title: "Candidate added",
-        description: "Candidate was added to the pool.",
-      });
+      toast({ title: "Candidate added" });
     } catch (error: any) {
-      toast({
-        title: "Add failed",
-        description: error?.message || "Could not add candidate to pool.",
-        variant: "destructive",
-      });
+      toast({ title: "Add failed", description: error?.message, variant: "destructive" });
     }
   };
 
@@ -189,59 +157,66 @@ const TalentPools = () => {
     setCandidateActionId(candidateId);
     try {
       await removeCandidateFromPool({ poolId: selectedPoolId, candidateId });
-      toast({
-        title: "Candidate removed",
-        description: "Candidate was removed from this pool.",
-      });
+      toast({ title: "Candidate removed" });
     } catch (error: any) {
-      toast({
-        title: "Remove failed",
-        description: error?.message || "Could not remove candidate.",
-        variant: "destructive",
-      });
+      toast({ title: "Remove failed", description: error?.message, variant: "destructive" });
     } finally {
       setCandidateActionId(null);
     }
   };
 
-  const handleInviteCandidate = async (candidateId: string) => {
+  const inviteOne = async (candidateId: string) => {
     if (!selectedJobId) {
-      toast({
-        title: "Select job",
-        description: "Choose an open job to invite this candidate.",
-        variant: "destructive",
-      });
+      toast({ title: "Select a job first", description: "Choose an open job from the dropdown above.", variant: "destructive" });
       return;
     }
-
     setCandidateActionId(candidateId);
     try {
       const { data, error } = await supabase.rpc("invite_candidate_to_job", {
         p_candidate_id: candidateId,
         p_job_id: selectedJobId,
       });
-
-      if (error) throw new Error(error.message || "Could not invite candidate.");
-
+      if (error) throw new Error(error.message);
       const row = Array.isArray(data) ? data[0] : data;
       toast({
         title: row?.created ? "Candidate invited" : "Already invited",
         description: row?.created
-          ? "Candidate application was created for this job."
+          ? "Application created for this job."
           : "Candidate already has an application for this job.",
       });
-
       queryClient.invalidateQueries({ queryKey: ["employer-applications"] });
       queryClient.invalidateQueries({ queryKey: ["agency-applications"] });
     } catch (error: any) {
-      toast({
-        title: "Invite failed",
-        description: error?.message || "Could not invite candidate to job.",
-        variant: "destructive",
-      });
+      toast({ title: "Invite failed", description: error?.message, variant: "destructive" });
     } finally {
       setCandidateActionId(null);
     }
+  };
+
+  const handleInviteAll = async () => {
+    if (!selectedJobId) {
+      toast({ title: "Select a job first", description: "Choose an open job to invite all candidates.", variant: "destructive" });
+      return;
+    }
+    if (poolCandidates.length === 0) return;
+    setIsInvitingAll(true);
+    let successCount = 0;
+    for (const candidate of poolCandidates) {
+      try {
+        await supabase.rpc("invite_candidate_to_job", {
+          p_candidate_id: candidate.candidateId,
+          p_job_id: selectedJobId,
+        });
+        successCount++;
+      } catch { /* skip already-invited */ }
+    }
+    setIsInvitingAll(false);
+    toast({
+      title: "Bulk invite complete",
+      description: `${successCount} of ${poolCandidates.length} candidate${poolCandidates.length !== 1 ? "s" : ""} invited.`,
+    });
+    queryClient.invalidateQueries({ queryKey: ["employer-applications"] });
+    queryClient.invalidateQueries({ queryKey: ["agency-applications"] });
   };
 
   return (
@@ -257,32 +232,21 @@ const TalentPools = () => {
         <Card className="border-0 card-float">
           <CardContent className="p-0">
             <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] min-h-[72vh]">
+
+              {/* Left: pools list */}
               <div className="border-r border-border/40">
                 <CardHeader className="space-y-4">
                   <CardTitle className="text-lg">Pools</CardTitle>
                   <div className="space-y-2">
-                    <Label htmlFor="new-pool-name" className="text-xs text-muted-foreground uppercase tracking-wide">
-                      Create New Pool
-                    </Label>
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wide">Create New Pool</Label>
                     <div className="flex gap-2">
                       <Input
-                        id="new-pool-name"
                         value={newPoolName}
-                        onChange={(event) => setNewPoolName(event.target.value)}
+                        onChange={(e) => setNewPoolName(e.target.value)}
                         placeholder="e.g. Frontend Shortlist"
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.preventDefault();
-                            void handleCreatePool();
-                          }
-                        }}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void handleCreatePool(); } }}
                       />
-                      <Button
-                        onClick={() => {
-                          void handleCreatePool();
-                        }}
-                        disabled={isCreatingPool || !newPoolName.trim()}
-                      >
+                      <Button onClick={() => void handleCreatePool()} disabled={isCreatingPool || !newPoolName.trim()}>
                         {isCreatingPool ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                       </Button>
                     </div>
@@ -309,41 +273,19 @@ const TalentPools = () => {
                         >
                           {editingPoolId === pool.id ? (
                             <div className="space-y-2">
-                              <Input
-                                value={renameValue}
-                                onChange={(event) => setRenameValue(event.target.value)}
-                                autoFocus
-                              />
+                              <Input value={renameValue} onChange={(e) => setRenameValue(e.target.value)} autoFocus />
                               <div className="flex gap-1">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => {
-                                    void handleRenamePool(pool.id);
-                                  }}
-                                  disabled={isRenamingPool || !renameValue.trim()}
-                                >
+                                <Button size="sm" variant="outline" onClick={() => void handleRenamePool(pool.id)} disabled={isRenamingPool || !renameValue.trim()}>
                                   {isRenamingPool ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                                 </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => {
-                                    setEditingPoolId(null);
-                                    setRenameValue("");
-                                  }}
-                                >
+                                <Button size="sm" variant="ghost" onClick={() => { setEditingPoolId(null); setRenameValue(""); }}>
                                   <X className="w-3.5 h-3.5" />
                                 </Button>
                               </div>
                             </div>
                           ) : (
                             <div className="space-y-2">
-                              <button
-                                type="button"
-                                className="w-full text-left"
-                                onClick={() => setSelectedPoolId(pool.id)}
-                              >
+                              <button type="button" className="w-full text-left" onClick={() => setSelectedPoolId(pool.id)}>
                                 <p className="text-sm font-semibold truncate">{pool.name}</p>
                                 <p className="text-xs text-muted-foreground">
                                   {pool.candidateCount} candidate{pool.candidateCount === 1 ? "" : "s"}
@@ -353,14 +295,7 @@ const TalentPools = () => {
                                 <Button size="sm" variant="ghost" onClick={() => beginRename(pool)}>
                                   <PencilLine className="w-3.5 h-3.5" />
                                 </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => {
-                                    void handleDeletePool(pool.id, pool.name);
-                                  }}
-                                  disabled={isDeletingPool}
-                                >
+                                <Button size="sm" variant="ghost" onClick={() => void handleDeletePool(pool.id, pool.name)} disabled={isDeletingPool}>
                                   {isDeletingPool ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5 text-destructive" />}
                                 </Button>
                               </div>
@@ -378,9 +313,11 @@ const TalentPools = () => {
                 </ScrollArea>
               </div>
 
+              {/* Right: pool detail */}
               <div className="flex flex-col min-h-[72vh]">
                 {selectedPool ? (
                   <>
+                    {/* Pool header toolbar */}
                     <div className="p-5 border-b border-border/40 space-y-4">
                       <div className="flex items-center justify-between gap-4">
                         <div>
@@ -393,26 +330,52 @@ const TalentPools = () => {
                       </div>
 
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        {/* Searchable candidate combobox */}
                         <div className="space-y-2">
                           <Label className="text-xs text-muted-foreground uppercase tracking-wide">Add Candidate</Label>
                           <div className="flex gap-2">
-                            <Select value={selectedCandidateToAdd} onValueChange={setSelectedCandidateToAdd}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select candidate" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {recruiterCandidates.map((candidate) => (
-                                  <SelectItem key={candidate.candidateId} value={candidate.candidateId}>
-                                    {candidate.fullName}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <Popover open={candidateComboOpen} onOpenChange={setCandidateComboOpen}>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  role="combobox"
+                                  className="flex-1 justify-between font-normal text-sm"
+                                >
+                                  <span className="truncate">
+                                    {selectedCandidateName || "Search candidates…"}
+                                  </span>
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-[260px] p-0" align="start">
+                                <Command>
+                                  <CommandInput placeholder="Search by name…" />
+                                  <CommandList>
+                                    <CommandEmpty>No candidates found.</CommandEmpty>
+                                    <CommandGroup>
+                                      {recruiterCandidates.map((c) => (
+                                        <CommandItem
+                                          key={c.candidateId}
+                                          value={c.fullName}
+                                          onSelect={() => {
+                                            setSelectedCandidateToAdd(
+                                              selectedCandidateToAdd === c.candidateId ? "" : c.candidateId
+                                            );
+                                            setCandidateComboOpen(false);
+                                          }}
+                                        >
+                                          <Check className={cn("mr-2 h-4 w-4", selectedCandidateToAdd === c.candidateId ? "opacity-100" : "opacity-0")} />
+                                          {c.fullName}
+                                        </CommandItem>
+                                      ))}
+                                    </CommandGroup>
+                                  </CommandList>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
                             <Button
                               variant="outline"
-                              onClick={() => {
-                                void handleAddCandidateToPool();
-                              }}
+                              onClick={() => void handleAddCandidateToPool()}
                               disabled={!selectedCandidateToAdd || isAddingCandidate}
                             >
                               {isAddingCandidate ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
@@ -420,24 +383,37 @@ const TalentPools = () => {
                           </div>
                         </div>
 
+                        {/* Job selector + Invite All */}
                         <div className="space-y-2">
-                          <Label className="text-xs text-muted-foreground uppercase tracking-wide">Invite to Job</Label>
-                          <Select value={selectedJobId} onValueChange={setSelectedJobId}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select open job for invite" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {openJobs.map((job) => (
-                                <SelectItem key={job.id} value={job.id}>
-                                  {job.title}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <Label className="text-xs text-muted-foreground uppercase tracking-wide">
+                            Invite to Job
+                            {selectedJobId && <span className="ml-2 normal-case text-primary font-normal">· scores updated</span>}
+                          </Label>
+                          <div className="flex gap-2">
+                            <Select value={selectedJobId} onValueChange={setSelectedJobId}>
+                              <SelectTrigger className="flex-1">
+                                <SelectValue placeholder="Select open job" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {openJobs.map((job) => (
+                                  <SelectItem key={job.id} value={job.id}>{job.title}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              variant="outline"
+                              onClick={() => void handleInviteAll()}
+                              disabled={isInvitingAll || poolCandidates.length === 0 || !selectedJobId}
+                              title="Invite all candidates to selected job"
+                            >
+                              {isInvitingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
 
+                    {/* Candidate cards */}
                     <ScrollArea className="flex-1 h-[50vh] lg:h-[56vh] p-5">
                       {isPoolCandidatesLoading ? (
                         <div className="h-40 flex items-center justify-center">
@@ -451,15 +427,21 @@ const TalentPools = () => {
                               <Card key={candidate.id} className="border border-border/60">
                                 <CardContent className="p-5 space-y-4">
                                   <div className="flex items-start justify-between gap-4">
-                                    <div>
-                                      <h3 className="font-semibold">{candidate.fullName}</h3>
+                                    <div className="min-w-0 flex-1">
+                                      <h3 className="font-semibold truncate">{candidate.fullName}</h3>
                                       <p className="text-sm text-muted-foreground">
-                                        {candidate.yearsExperience} years experience
+                                        {candidate.yearsExperience > 0
+                                          ? `${candidate.yearsExperience} yrs experience`
+                                          : "Experience not listed"}
                                       </p>
                                     </div>
-                                    <Badge className={`border ${scoreClass(candidate.aiMatchScore)}`}>
-                                      {candidate.aiMatchScore}% Match
-                                    </Badge>
+                                    {candidate.aiMatchScore > 0 ? (
+                                      <Badge className={`border shrink-0 ${scoreClass(candidate.aiMatchScore)}`}>
+                                        {candidate.aiMatchScore}% Match
+                                      </Badge>
+                                    ) : selectedJobId ? (
+                                      <Badge variant="outline" className="text-muted-foreground shrink-0">Unscored</Badge>
+                                    ) : null}
                                   </div>
 
                                   <div className="space-y-2">
@@ -467,23 +449,29 @@ const TalentPools = () => {
                                     <div className="flex flex-wrap gap-1.5">
                                       {candidate.skills.length > 0 ? (
                                         candidate.skills.slice(0, 8).map((skill) => (
-                                          <Badge key={`${candidate.candidateId}-${skill}`} variant="outline">
-                                            {skill}
-                                          </Badge>
+                                          <Badge key={`${candidate.candidateId}-${skill}`} variant="outline">{skill}</Badge>
                                         ))
                                       ) : (
-                                        <Badge variant="outline">No skills listed</Badge>
+                                        <span className="text-xs text-muted-foreground">No skills listed</span>
                                       )}
                                     </div>
                                   </div>
 
                                   <div className="flex flex-wrap gap-2">
+                                    <a
+                                      href={`/dashboard/candidates/${candidate.candidateId}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                    >
+                                      <Button size="sm" variant="ghost" className="text-muted-foreground">
+                                        <ExternalLink className="w-4 h-4 mr-2" />
+                                        View Profile
+                                      </Button>
+                                    </a>
                                     <Button
                                       size="sm"
                                       variant="outline"
-                                      onClick={() => {
-                                        void handleRemoveCandidateFromPool(candidate.candidateId);
-                                      }}
+                                      onClick={() => void handleRemoveCandidateFromPool(candidate.candidateId)}
                                       disabled={isBusy || isRemovingCandidate}
                                     >
                                       {isBusy && isRemovingCandidate ? (
@@ -495,10 +483,8 @@ const TalentPools = () => {
                                     </Button>
                                     <Button
                                       size="sm"
-                                      onClick={() => {
-                                        void handleInviteCandidate(candidate.candidateId);
-                                      }}
-                                      disabled={isBusy}
+                                      onClick={() => void inviteOne(candidate.candidateId)}
+                                      disabled={isBusy || !selectedJobId}
                                     >
                                       {isBusy && !isRemovingCandidate ? (
                                         <Loader2 className="w-4 h-4 animate-spin mr-2" />
@@ -518,7 +504,7 @@ const TalentPools = () => {
                           <Users className="w-10 h-10 text-muted-foreground/40 mb-2" />
                           <h3 className="font-semibold">Pool is empty</h3>
                           <p className="text-sm text-muted-foreground mt-1">
-                            Add candidates from the selector above or from Resume Search and AI ranking pages.
+                            Add candidates from the selector above or from Resume Search.
                           </p>
                         </div>
                       )}
@@ -528,9 +514,7 @@ const TalentPools = () => {
                   <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
                     <Users className="w-10 h-10 text-muted-foreground/40 mb-2" />
                     <h3 className="font-semibold">Select or create a pool</h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Start by creating a pool in the left panel.
-                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">Start by creating a pool in the left panel.</p>
                   </div>
                 )}
               </div>

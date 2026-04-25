@@ -3,11 +3,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Briefcase, Loader2, CheckCircle, XCircle, Clock, User } from "lucide-react";
+import { Search, Briefcase, Loader2, CheckCircle, XCircle, Clock, User, Share2 } from "lucide-react";
 import { useEmployerApplications } from "@/hooks/useEmployerApplications";
 import { useProfile } from "@/hooks/useProfile";
 import { useUpdateApplicationStatus, getAllowedTransitions } from "@/hooks/useUpdateApplicationStatus";
 import StatusProgressBar from "@/components/StatusProgressBar";
+import { ShareCandidateModal } from "@/components/recruiter/ShareCandidateModal";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -36,6 +37,7 @@ const Candidates = () => {
   const { updateStatus, isUpdating } = useUpdateApplicationStatus();
   const navigate = useNavigate();
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [shareCandidate, setShareCandidate] = useState<{ id: string; full_name: string } | null>(null);
 
   const role = profile?.role || '';
 
@@ -135,6 +137,14 @@ const Candidates = () => {
                           >
                             View Profile
                           </Button>
+                          <Button
+                            variant="outline"
+                            className="h-11 px-5 rounded-xl"
+                            onClick={() => setShareCandidate({ id: app.candidate_id, full_name: app.candidate_name })}
+                          >
+                            <Share2 className="w-4 h-4 mr-2" />
+                            Share
+                          </Button>
                           {transitions.map((t) => (
                             <Button
                               key={t.status}
@@ -174,6 +184,14 @@ const Candidates = () => {
           </div>
         )}
       </div>
+
+      {shareCandidate && (
+        <ShareCandidateModal
+          open={!!shareCandidate}
+          onOpenChange={(open) => { if (!open) setShareCandidate(null); }}
+          candidate={shareCandidate}
+        />
+      )}
     </DashboardLayout>
   );
 };

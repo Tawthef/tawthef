@@ -3,10 +3,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, MoreHorizontal, Building2, Calendar, Briefcase, Loader2, CheckCircle, Send, BarChart3, AlertTriangle, ClipboardList } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Building2, Calendar, Briefcase, Loader2, CheckCircle, Send, BarChart3, AlertTriangle, ClipboardList, Pencil, Trash2, ExternalLink } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useJobs } from "@/hooks/useJobs";
+import { useJobs, useDeleteJob, Job } from "@/hooks/useJobs";
 import { useProfile } from "@/hooks/useProfile";
 import { useApplications } from "@/hooks/useApplications";
 import { useJobSlots } from "@/hooks/useJobSlots";
@@ -15,6 +15,8 @@ import { Link } from "react-router-dom";
 import UpgradeModal from "@/components/UpgradeModal";
 import { useToast } from "@/hooks/use-toast";
 import RecruiterVerificationBanner from "@/components/recruiter/RecruiterVerificationBanner";
+import { CreateJobDialog } from "@/components/jobs/CreateJobDialog";
+import { GenerateClientLinkModal } from "@/components/jobs/GenerateClientLinkModal";
 
 const getStatusBadge = (status: string) => {
   const config: Record<string, { label: string; className: string }> = {
@@ -38,9 +40,13 @@ const Jobs = () => {
   const { jobs, isLoading, error } = useJobs();
   const { profile } = useProfile();
   const { apply, hasApplied, isApplying } = useApplications();
-  const { hasAvailableSlots, remainingSlots, consumeSlot, isConsuming } = useJobSlots();
+  const { hasAvailableSlots, remainingSlots, isConsuming } = useJobSlots();
   const [applyingJobId, setApplyingJobId] = useState<string | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [editJob, setEditJob] = useState<Job | null>(null);
+  const [reviewJob, setReviewJob] = useState<Job | null>(null);
+  const deleteJob = useDeleteJob();
   const { toast } = useToast();
 
   const isEmployer = profile?.role === 'employer';
@@ -48,18 +54,33 @@ const Jobs = () => {
   const isCandidate = profile?.role === 'candidate';
   const recruiterRestricted = (isEmployer || isAgency) && profile?.verification_status !== 'verified';
 
+  const handleDelete = async (jobId: string, title: string) => {
+    if (!window.confirm(`Delete "${title}"? This cannot be undone.`)) return;
+    try {
+      await deleteJob.mutateAsync(jobId);
+      toast({ title: "Job deleted", description: `"${title}" has been removed.` });
+    } catch (err: any) {
+      toast({ title: "Delete failed", description: err?.message || "Please try again.", variant: "destructive" });
+    }
+  };
+
   const handleApply = async (jobId: string) => {
     setApplyingJobId(jobId);
     try {
       await apply(jobId);
-    } catch (err) {
-      console.error('[Apply] Error:', err);
+      toast({ title: "Application submitted", description: "You have successfully applied for this job." });
+    } catch (err: any) {
+      toast({
+        title: "Application failed",
+        description: err?.message || "Could not submit application. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setApplyingJobId(null);
     }
   };
 
-  const handlePostJob = async () => {
+  const handlePostJob = () => {
     if (recruiterRestricted) {
       toast({
         title: "Verification required",
@@ -68,33 +89,7 @@ const Jobs = () => {
       });
       return;
     }
-
-    // Server-side enforcement: check if subscription is valid
-    if (!hasAvailableSlots) {
-      setShowUpgradeModal(true);
-      return;
-    }
-
-    try {
-      // Consume a slot via RPC before creating the job
-      await consumeSlot();
-      toast({
-        title: "Slot Reserved",
-        description: `Job slot consumed. ${remainingSlots - 1} remaining.`,
-      });
-      // TODO: Navigate to job creation form or open dialog
-    } catch (err: any) {
-      console.error('[PostJob] Failed to consume slot:', err);
-      if (err?.message?.includes('NO_AVAILABLE_SLOTS')) {
-        setShowUpgradeModal(true);
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to reserve job slot. Please try again.",
-          variant: "destructive",
-        });
-      }
-    }
+    setShowCreateDialog(true);
   };
 
   return (
@@ -110,7 +105,7 @@ const Jobs = () => {
               {isEmployer ? "Your open positions and hiring pipeline" : "Browse available opportunities"}
             </p>
           </div>
-          {isEmployer && (
+          {(isEmployer || isAgency) && (
             <div className="relative group">
               <Button
                 className="w-full sm:w-fit shadow-xl shadow-primary/25 h-11 sm:h-14 lg:h-16 px-6 sm:px-8 lg:px-10 text-sm sm:text-base font-semibold rounded-xl sm:rounded-2xl"
@@ -141,8 +136,8 @@ const Jobs = () => {
           )}
         </div>
 
-        {/* Upgrade banner for employers with no slots */}
-        {isEmployer && !hasAvailableSlots && !recruiterRestricted && (
+        {/* Upgrade banner for recruiters with no slots */}
+        {(isEmployer || isAgency) && !hasAvailableSlots && !recruiterRestricted && (
           <Card className="border-warning/30 bg-warning/5">
             <CardContent className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
               <div className="flex items-center gap-3 flex-1">
@@ -271,20 +266,52 @@ const Jobs = () => {
                                 Open Pipeline
                               </DropdownMenuItem>
                             </Link>
-                            <DropdownMenuItem className="py-3.5 px-4 rounded-lg font-medium">View Details</DropdownMenuItem>
-                            <DropdownMenuItem className="py-3.5 px-4 rounded-lg font-medium">Edit Position</DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive py-3.5 px-4 rounded-lg font-medium">Close Position</DropdownMenuItem>
+                            <DropdownMenuItem className="py-3.5 px-4 rounded-lg font-medium" onClick={() => setReviewJob(job)}>
+                              <ExternalLink className="w-4 h-4 mr-2" />
+                              Generate Client Link
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="py-3.5 px-4 rounded-lg font-medium" onClick={() => setEditJob(job)}>
+                              <Pencil className="w-4 h-4 mr-2" />
+                              Edit Position
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive py-3.5 px-4 rounded-lg font-medium" onClick={() => handleDelete(job.id, job.title)}>
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete Position
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       )}
 
                       {isAgency && (
-                        <Button asChild variant="outline" className="h-10 sm:h-12 px-4 sm:px-6 rounded-lg sm:rounded-xl text-sm">
-                          <Link to={`/dashboard/jobs/${job.id}/pipeline`}>
-                            <ClipboardList className="w-4 h-4 mr-2" />
-                            Open Pipeline
-                          </Link>
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button asChild variant="outline" className="h-10 sm:h-12 px-4 sm:px-6 rounded-lg sm:rounded-xl text-sm">
+                            <Link to={`/dashboard/jobs/${job.id}/pipeline`}>
+                              <ClipboardList className="w-4 h-4 mr-2" />
+                              Open Pipeline
+                            </Link>
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="rounded-xl w-10 h-10 sm:w-12 sm:h-12 hover:bg-muted/50">
+                                <MoreHorizontal className="w-5 h-5 text-muted-foreground" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-52 p-2 rounded-xl">
+                              <DropdownMenuItem className="py-3.5 px-4 rounded-lg font-medium" onClick={() => setReviewJob(job)}>
+                                <ExternalLink className="w-4 h-4 mr-2" />
+                                Generate Client Link
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="py-3.5 px-4 rounded-lg font-medium" onClick={() => setEditJob(job)}>
+                                <Pencil className="w-4 h-4 mr-2" />
+                                Edit Position
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="text-destructive py-3.5 px-4 rounded-lg font-medium" onClick={() => handleDelete(job.id, job.title)}>
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete Position
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       )}
 
                       {/* Apply button - Candidates only */}
@@ -317,6 +344,20 @@ const Jobs = () => {
           </div>
         )}
       </div>
+
+      <CreateJobDialog open={showCreateDialog} onOpenChange={setShowCreateDialog} />
+      <CreateJobDialog
+        open={!!editJob}
+        onOpenChange={(open) => { if (!open) setEditJob(null); }}
+        editJob={editJob ?? undefined}
+      />
+      {reviewJob && (
+        <GenerateClientLinkModal
+          open={!!reviewJob}
+          onOpenChange={(open) => { if (!open) setReviewJob(null); }}
+          job={reviewJob}
+        />
+      )}
 
       {/* Upgrade Modal */}
       <UpgradeModal

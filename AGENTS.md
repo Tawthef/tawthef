@@ -1,4 +1,40 @@
-# Agent Instructions
+Read this entire file before starting any task.
+Apply Karpathy Skills first, then follow the Execution Model and gstack workflow, then apply all project-specific rules below.
+
+## Karpathy Skills
+
+* Think Before Coding: Understand the problem deeply before writing code. Ask clarifying questions when needed.
+* Simplicity First: Prefer the simplest solution. Avoid over-engineering.
+* Surgical Changes: Make minimal, precise edits without unrelated changes.
+* Goal-Driven Execution: Focus on outcomes and break work into clear steps.
+
+## Execution Model
+
+* Always apply Karpathy Skills before using any gstack skill
+* Prefer the simplest viable solution before planning or coding
+* Avoid unnecessary complexity during workflows
+* If a plan becomes complex, stop and simplify before proceeding
+
+## gstack
+
+* Use gstack skills for structured workflows
+* Default workflow: Think -> Plan -> Build -> Review -> Test -> Ship
+* Prefer:
+  /office-hours  clarify problem
+  /autoplan  create plan
+  /review  validate code
+  /qa  test behavior
+  /ship  finalize changes
+
+Rules:
+
+* Always plan before non-trivial implementation
+* Prefer smaller, simpler plans over complex ones
+* Use review and testing before finalizing changes
+
+---
+
+# Project Instructions
 
 Read this entire file before starting any task.
 

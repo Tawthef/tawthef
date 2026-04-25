@@ -10,9 +10,10 @@ import { useProfile } from "@/hooks/useProfile";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Briefcase, ExternalLink, Loader2, MapPin, Sparkles, UserPlus, Users } from "lucide-react";
+import { ArrowLeft, Briefcase, ExternalLink, Loader2, MapPin, Share2, Sparkles, UserPlus, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
+import { ShareCandidateModal } from "@/components/recruiter/ShareCandidateModal";
 
 const scoreClass = (score: number) => {
   if (score >= 80) return "bg-success/10 text-success border-success/30";
@@ -31,6 +32,7 @@ const CandidateProfilePage = () => {
   const { addCandidateToPool, isAddingCandidate } = useTalentPoolActions();
 
   const [targetPoolId, setTargetPoolId] = useState("");
+  const [shareModalOpen, setShareModalOpen] = useState(false);
 
   const isRecruiter = useMemo(
     () => ["employer", "agency", "admin"].includes(profile?.role || ""),
@@ -103,7 +105,26 @@ const CandidateProfilePage = () => {
             </Button>
             <h1 className="text-3xl lg:text-4xl font-bold tracking-tight">Candidate Profile</h1>
           </div>
+          {candidate && (
+            <Button variant="outline" size="sm" onClick={() => setShareModalOpen(true)}>
+              <Share2 className="w-4 h-4 mr-2" />
+              Share Candidate
+            </Button>
+          )}
         </div>
+
+        {candidate && (
+          <ShareCandidateModal
+            open={shareModalOpen}
+            onOpenChange={setShareModalOpen}
+            candidate={{
+              id: candidateId!,
+              full_name: candidate.fullName,
+              skills: candidate.skills,
+              years_experience: candidate.yearsExperience,
+            }}
+          />
+        )}
 
         {isLoading ? (
           <div className="flex items-center justify-center py-20">

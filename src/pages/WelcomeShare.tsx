@@ -103,10 +103,6 @@ const WelcomeShare = () => {
     staleTime: 60 * 1000,
   });
 
-  if (!isProfileLoading && (!profile || !["candidate", "employer", "agency"].includes(profile.role))) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
   const isLoading = isProfileLoading || candidateProfileQuery.isLoading || organizationQuery.isLoading || isMarkingBannerShown;
 
   const name =
@@ -144,6 +140,10 @@ const WelcomeShare = () => {
       referralLink,
     });
   }, [company, name, profession, referralLink, roleLabel, variant]);
+
+  if (!isProfileLoading && (!profile || !["candidate", "employer", "agency"].includes(profile.role))) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const handleAvatarUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];

@@ -13,9 +13,11 @@ import { useProfile } from "@/hooks/useProfile";
 import { useJobs } from "@/hooks/useJobs";
 import { useResumeSearch } from "@/hooks/useResumeSearch";
 import { useTalentPoolActions, useTalentPools } from "@/hooks/useTalentPools";
+import { useCheckSubscription } from "@/hooks/useSubscription";
 import RecruiterVerificationBanner from "@/components/recruiter/RecruiterVerificationBanner";
+import UpgradeModal from "@/components/UpgradeModal";
 import { supabase } from "@/lib/supabase";
-import { Briefcase, ChevronLeft, ChevronRight, Loader2, Search, Sparkles, UserPlus } from "lucide-react";
+import { ArrowRight, Briefcase, ChevronLeft, ChevronRight, Loader2, Lock, Search, Sparkles, UserPlus } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
 const PAGE_SIZE = 10;
@@ -56,6 +58,10 @@ const ResumeSearch = () => {
   const [actionCandidateId, setActionCandidateId] = useState<string | null>(null);
 
   const { data: candidates = [], isLoading } = useResumeSearch(filters);
+  const { check: resumeAccess } = useCheckSubscription('resume_search');
+  const hasResumeAccess = profile?.role === 'admin' || resumeAccess.is_valid;
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
   const recruiterRestricted =
     (profile?.role === "employer" || profile?.role === "agency") &&
     profile?.verification_status !== "verified";
@@ -303,7 +309,7 @@ const ResumeSearch = () => {
 
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            Showing {candidates.length} result{candidates.length === 1 ? "" : "s"} (max 50)
+            Showing {candidates.length} result{candidates.length === 1 ? "" : "s"} (max 200)
           </p>
           <div className="flex items-center gap-2">
             <Button
@@ -330,6 +336,24 @@ const ResumeSearch = () => {
           </div>
         </div>
 
+        {!hasResumeAccess && candidates.length > 0 && (
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <Lock className="w-5 h-5 text-primary flex-shrink-0" />
+                <div>
+                  <p className="font-semibold text-foreground text-sm">Unlock full candidate profiles</p>
+                  <p className="text-xs text-muted-foreground">Subscribe to Resume Search ($500 / 30 days) to see names, CVs, and contact details.</p>
+                </div>
+              </div>
+              <Button size="sm" className="shrink-0" onClick={() => setShowUpgradeModal(true)}>
+                Upgrade Now
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -338,6 +362,89 @@ const ResumeSearch = () => {
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
             {paginatedCandidates.map((candidate) => {
               const isBusy = actionCandidateId === candidate.candidate_id;
+
+              if (!hasResumeAccess) {
+                return (
+                  <Card key={candidate.candidate_id} className="card-float border-0">
+                    <CardContent className="p-6 space-y-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-11 h-11 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                            <Lock className="w-4 h-4 text-muted-foreground" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-muted-foreground/50 select-none">Hidden Candidate</h3>
+                            <p className="text-sm text-muted-foreground">
+                              {candidate.years_experience} years experience
+                              {candidate.location && ` · ${candidate.location}`}
+                            </p>
+                          </div>
+                        </div>
+                        <Badge className={`border ${scoreClass(candidate.match_score)}`}>
+                          {candidate.match_score}% Match
+                        </Badge>
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Skills</p>
+                        <div className="flex flex-wrap gap-2">
+                          {candidate.skills.slice(0, 8).map((skill) => (
+                            <Badge key={`${candidate.candidate_id}-${skill}`} variant="outline">{skill}</Badge>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <p className="text-xs uppercase tracking-wide text-muted-foreground">Skills Matched</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {candidate.matched_skills.length > 0 ? (
+                              candidate.matched_skills.slice(0, 6).map((skill) => (
+                                <Badge key={`m-${candidate.candidate_id}-${skill}`} className="bg-success/10 text-success border-success/30">{skill}</Badge>
+                              ))
+                            ) : (
+                              <Badge variant="outline">No specific matches</Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs uppercase tracking-wide text-muted-foreground">Skills Missing</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {candidate.missing_skills.length > 0 ? (
+                              candidate.missing_skills.slice(0, 6).map((skill) => (
+                                <Badge key={`x-${candidate.candidate_id}-${skill}`} className="bg-muted/50 text-muted-foreground border-border">{skill}</Badge>
+                              ))
+                            ) : (
+                              <Badge className="bg-success/10 text-success border-success/30">None</Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        <Button variant="outline" size="sm" onClick={() => setShowUpgradeModal(true)}>
+                          <Lock className="w-3.5 h-3.5 mr-1.5" />
+                          View Profile
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => setShowUpgradeModal(true)}>
+                          <Lock className="w-3.5 h-3.5 mr-1.5" />
+                          View Resume
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => setShowUpgradeModal(true)}>
+                          <Lock className="w-3.5 h-3.5 mr-1.5" />
+                          Contact
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        <button onClick={() => setShowUpgradeModal(true)} className="text-primary hover:underline">
+                          Upgrade to Resume Search
+                        </button>{" "}to unlock full profiles
+                      </p>
+                    </CardContent>
+                  </Card>
+                );
+              }
+
               return (
                 <Card key={candidate.candidate_id} className="card-float border-0">
                   <CardContent className="p-6 space-y-4">
@@ -346,6 +453,7 @@ const ResumeSearch = () => {
                         <h3 className="text-lg font-semibold text-foreground">{candidate.full_name}</h3>
                         <p className="text-sm text-muted-foreground">
                           {candidate.years_experience} years experience
+                          {candidate.location && ` · ${candidate.location}`}
                         </p>
                       </div>
                       <Badge className={`border ${scoreClass(candidate.match_score)}`}>
@@ -469,6 +577,12 @@ const ResumeSearch = () => {
           </>
         )}
       </div>
+
+      <UpgradeModal
+        open={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        variant="resume_access"
+      />
     </DashboardLayout>
   );
 };

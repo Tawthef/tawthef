@@ -3,7 +3,11 @@
 -- =====================================================
 -- Run in Supabase SQL Editor
 
+-- Drop both the old version of this function AND the competing overload from
+-- talent_search_schema.sql so only one search_candidates exists in the DB.
 DROP FUNCTION IF EXISTS public.search_candidates(TEXT[], TEXT[], INTEGER);
+DROP FUNCTION IF EXISTS public.search_candidates(TEXT, TEXT[], TEXT, INTEGER, INTEGER, INTEGER, INTEGER);
+
 CREATE OR REPLACE FUNCTION public.search_candidates(
   p_skills TEXT[],
   p_keywords TEXT[],
@@ -12,6 +16,7 @@ CREATE OR REPLACE FUNCTION public.search_candidates(
 RETURNS TABLE (
   candidate_id UUID,
   full_name TEXT,
+  location TEXT,
   skills TEXT[],
   years_experience NUMERIC,
   resume_url TEXT,
@@ -36,16 +41,17 @@ BEGIN
   RETURN QUERY
   WITH normalized AS (
     SELECT
-      cp.candidate_id,
+      pr.id AS candidate_id,
       pr.full_name,
+      cp.location,
       COALESCE(cp.skills, '{}'::TEXT[]) AS profile_skills,
       COALESCE(cp.keywords, '{}'::TEXT[]) AS profile_keywords,
       COALESCE(cp.years_experience, 0) AS profile_years_experience,
       cp.resume_url,
       COALESCE(p_skills, '{}'::TEXT[]) AS search_skills,
       COALESCE(p_keywords, '{}'::TEXT[]) AS search_keywords
-    FROM public.candidate_profiles cp
-    JOIN public.profiles pr ON pr.id = cp.candidate_id
+    FROM public.profiles pr
+    LEFT JOIN public.candidate_profiles cp ON cp.candidate_id = pr.id
     WHERE pr.role = 'candidate'
   ),
   scored AS (
@@ -63,6 +69,7 @@ BEGIN
   SELECT
     s.candidate_id,
     s.full_name,
+    s.location,
     s.profile_skills AS skills,
     s.profile_years_experience AS years_experience,
     s.resume_url,
@@ -85,7 +92,7 @@ BEGIN
       )
     )
   ORDER BY match_score DESC, s.profile_years_experience DESC, s.full_name ASC
-  LIMIT 50;
+  LIMIT 200;
 END;
 $$;
 

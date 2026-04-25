@@ -55,7 +55,7 @@ const BenefitsSection = () => {
   ];
 
   return (
-    <section className="pt-32 pb-24 lg:pt-40 lg:pb-32 gradient-section relative overflow-hidden">
+    <section className="pt-16 pb-16 lg:pt-20 lg:pb-20 gradient-section relative overflow-hidden">
       {/* Ambient elements */}
       <div className="absolute inset-0 -z-10">
         <div className="absolute top-[30%] right-[5%] w-[350px] h-[350px] rounded-full bg-primary/3 blur-3xl" />

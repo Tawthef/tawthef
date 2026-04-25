@@ -76,36 +76,36 @@ const HeroSection = () => {
               </span>
             </h1>
 
-            <p className="text-base lg:text-lg text-foreground/60 max-w-2xl mx-auto mb-4 leading-relaxed">
+            <p className="text-base lg:text-lg text-foreground/60 max-w-2xl mx-auto mb-8 leading-relaxed">
               A modern hiring platform that connects candidates with trusted recruiters, transparently and fairly.
-            </p>
-            <p className="text-sm sm:text-base text-foreground/60 leading-relaxed max-w-2xl mx-auto mb-3">
-              Structured hiring powered by transparency and AI-assisted screening.
-            </p>
-            <p className="text-xs text-muted-foreground text-center mb-8">
-              Trusted hiring platform for candidates, recruiters, and agencies.
             </p>
           </div>
 
           <div
-            className="w-full max-w-[340px] md:max-w-none mx-auto flex flex-col items-center justify-center gap-4 mb-8 animate-fade-in"
+            className="w-full max-w-[340px] md:max-w-none mx-auto flex flex-col items-center justify-center gap-3 mb-4 animate-fade-in"
             style={{ animationDelay: "0.2s" }}
           >
-            <Link to="/register" className="w-full md:w-auto">
-              <Button
-                className="w-full md:w-auto group h-[52px] md:h-12 text-base md:text-sm font-semibold px-10 bg-primary hover:bg-primary/90 text-white transition-all hover:scale-[1.02] rounded-md shadow-lg shadow-primary/20"
-              >
-                Create Your Free Profile
-                <ArrowRight className="w-4 h-4 ml-2 text-white/90 group-hover:translate-x-0.5 transition-transform" />
-              </Button>
-            </Link>
-
-            <a
-              href="#recruiters"
-              className="text-sm text-foreground/50 hover:text-foreground/70 transition-colors font-medium"
-            >
-              Are you a Recruiter? Learn more
-            </a>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Link to="/register">
+                <Button
+                  className="group h-[52px] md:h-12 text-base md:text-sm font-semibold px-10 bg-primary hover:bg-primary/90 text-white transition-all hover:scale-[1.02] rounded-md shadow-lg shadow-primary/20"
+                >
+                  Create Your Free Profile
+                  <ArrowRight className="w-4 h-4 ml-2 text-white/90 group-hover:translate-x-0.5 transition-transform" />
+                </Button>
+              </Link>
+              <a href="#how-it-works">
+                <Button
+                  variant="outline"
+                  className="h-[52px] md:h-12 text-base md:text-sm font-semibold px-8 border-border/50 text-foreground/70 hover:text-foreground hover:border-border hover:bg-muted/30 transition-all hover:scale-[1.02] rounded-md"
+                >
+                  See How It Works
+                </Button>
+              </a>
+            </div>
+            <p className="text-xs text-muted-foreground/50 text-center">
+              Free for candidates · Verified recruiters only · No spam
+            </p>
           </div>
 
           <div className="w-full max-w-[900px] mx-auto mb-8 px-1 sm:px-0 animate-fade-in" style={{ animationDelay: "0.25s" }}>

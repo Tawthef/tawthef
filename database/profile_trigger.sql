@@ -63,6 +63,16 @@ BEGIN
     role = COALESCE(EXCLUDED.role, profiles.role),
     organization_id = COALESCE(EXCLUDED.organization_id, profiles.organization_id);
 
+  -- Auto-create an empty candidate_profiles row for candidates so they
+  -- appear in resume search immediately after registration.
+  IF user_role = 'candidate' THEN
+    INSERT INTO public.candidate_profiles (candidate_id)
+    SELECT NEW.id
+    WHERE NOT EXISTS (
+      SELECT 1 FROM public.candidate_profiles WHERE candidate_id = NEW.id
+    );
+  END IF;
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -114,6 +124,15 @@ WHERE role IS NULL OR role = '';
 UPDATE profiles
 SET role = 'candidate'
 WHERE role NOT IN ('candidate', 'employer', 'agency', 'admin');
+
+-- Backfill: create candidate_profiles rows for all existing candidates
+-- who registered before the auto-create trigger was added.
+INSERT INTO public.candidate_profiles (candidate_id)
+SELECT p.id
+FROM public.profiles p
+LEFT JOIN public.candidate_profiles cp ON cp.candidate_id = p.id
+WHERE p.role = 'candidate'
+  AND cp.candidate_id IS NULL;
 
 -- =====================================================
 -- HELPER FUNCTIONS
