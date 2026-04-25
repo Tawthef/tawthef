@@ -1,9 +1,15 @@
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { cn } from "@/lib/utils";
 import {
+  ArrowRight,
   Briefcase,
   CreditCard,
+  DollarSign,
   FileText,
   Loader2,
+  ShieldCheck,
   UserPlus,
   UserRoundCog,
   Users,
@@ -96,6 +102,20 @@ const AdminOverview = () => {
     isApplicationsTrendLoading,
     error: metricsError,
   } = useAdminPlatformMetrics();
+
+  const { data: pendingVerifications = 0 } = useQuery({
+    queryKey: ['admin-pending-verifications'],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .eq('verification_status', 'pending')
+        .in('role', ['employer', 'agency']);
+      return Number(count || 0);
+    },
+    staleTime: 60000,
+    enabled: profile?.role === 'admin',
+  });
 
   if (profile?.role !== "admin") {
     return <Navigate to="/dashboard" replace />;
@@ -204,6 +224,14 @@ const AdminOverview = () => {
       trendLabel: "expired",
       trendDirection: subscriptionSummary.expired > 0 ? "down" as const : "neutral" as const,
     },
+    {
+      title: "Total Revenue",
+      value: `$${(data.revenue?.total_revenue || 0).toLocaleString("en-US", { maximumFractionDigits: 0 })}`,
+      icon: DollarSign,
+      trend: data.revenue?.active_subscriptions || 0,
+      trendLabel: "active subs",
+      trendDirection: "neutral" as const,
+    },
   ];
 
   return (
@@ -220,6 +248,33 @@ const AdminOverview = () => {
           {isMetricsLoading
             ? Array.from({ length: 6 }).map((_, index) => <DashboardStatCardSkeleton key={index} />)
             : kpiCards.map((card) => <DashboardStatCard key={card.title} {...card} />)}
+        </section>
+
+        {/* Quick Actions */}
+        <section>
+          <h2 className="text-lg font-semibold tracking-tight mb-3">Quick Actions</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { label: "Recruiter Verification", href: "/dashboard/admin/recruiter-verification", badge: pendingVerifications > 0 ? `${pendingVerifications} pending` : null, urgent: pendingVerifications > 0 },
+              { label: "Users Management", href: "/dashboard/admin/users", badge: null, urgent: false },
+              { label: "Subscriptions", href: "/dashboard/admin/subscriptions", badge: null, urgent: false },
+              { label: "Billing", href: "/dashboard/admin/billing", badge: null, urgent: false },
+            ].map((action) => (
+              <Link key={action.href} to={action.href}>
+                <div className={cn(
+                  "p-4 rounded-xl border bg-card flex items-center justify-between gap-2 hover:border-primary/40 hover:bg-muted/30 transition-colors cursor-pointer",
+                  action.urgent && "border-warning/50 bg-warning/5 hover:border-warning/70"
+                )}>
+                  <span className="text-sm font-medium truncate">{action.label}</span>
+                  {action.badge ? (
+                    <Badge className="bg-warning/15 text-warning border-warning/30 text-xs whitespace-nowrap shrink-0">{action.badge}</Badge>
+                  ) : (
+                    <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                  )}
+                </div>
+              </Link>
+            ))}
+          </div>
         </section>
 
         <section className="space-y-4">
@@ -320,8 +375,23 @@ const AdminOverview = () => {
               <CardTitle className="text-lg font-semibold">Subscription Health</CardTitle>
             </CardHeader>
             <CardContent>
+              <div className="flex items-center gap-6 text-sm mb-4 pb-4 border-b border-border/20">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Active</p>
+                  <p className="font-semibold flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5 text-success" />
+                    {data.revenue?.active_subscriptions || 0}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Expiring in 14 days</p>
+                  <p className={cn("font-semibold", data.expiring_subscriptions.length > 0 ? "text-warning" : "text-foreground")}>
+                    {data.expiring_subscriptions.length}
+                  </p>
+                </div>
+              </div>
               {data.expiring_subscriptions.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-10">No subscriptions expiring soon.</p>
+                <p className="text-sm text-muted-foreground text-center py-6">No subscriptions expiring soon.</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
