@@ -132,7 +132,11 @@ const fetchAuthLookupByUserIds = async (userIds: string[]): Promise<Map<string, 
     return lookup;
 };
 
-export async function getUsers(filters: AdminUsersFilters): Promise<AdminUsersResult> {
+const buildProfilesQuery = (
+    filters: AdminUsersFilters,
+    searchMatchedIds: string[],
+    includeStatus: boolean,
+) => {
     const page = Math.max(1, Number(filters.page || 1));
     const limit = Number(filters.limit || ADMIN_USERS_PAGE_SIZE);
     const search = (filters.search || '').trim();
@@ -140,24 +144,14 @@ export async function getUsers(filters: AdminUsersFilters): Promise<AdminUsersRe
     const status = filters.status || 'all';
     const offset = (page - 1) * limit;
 
-    const searchMatchedIds = await getSearchMatchedUserIds(search);
-    let query = supabase
-        .from('profiles')
-        .select(
-            `
-        id,
-        full_name,
-        role,
-        status,
-        organization_id,
-        created_at,
-        organizations(name)
-      `,
-            { count: 'exact' },
-        );
+    const fields = includeStatus
+        ? 'id, full_name, role, status, organization_id, created_at, organizations(name)'
+        : 'id, full_name, role, organization_id, created_at';
 
+    let query = supabase.from('profiles').select(fields, { count: 'exact' });
     query = applyUserTypeFilter(query, userType);
-    if (status !== 'all') {
+
+    if (includeStatus && status !== 'all') {
         query = query.eq('status', status);
     }
 
@@ -171,13 +165,25 @@ export async function getUsers(filters: AdminUsersFilters): Promise<AdminUsersRe
         }
     }
 
-    const { data, error, count } = await query
-        .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
+    return query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+};
 
-    if (error) throw error;
+export async function getUsers(filters: AdminUsersFilters): Promise<AdminUsersResult> {
+    const page = Math.max(1, Number(filters.page || 1));
+    const limit = Number(filters.limit || ADMIN_USERS_PAGE_SIZE);
+    const search = (filters.search || '').trim();
 
-    const rows = ((data || []) as ProfileRow[]).map((row) => ({
+    const searchMatchedIds = await getSearchMatchedUserIds(search);
+
+    let result = await buildProfilesQuery(filters, searchMatchedIds, true);
+    if (result.error) {
+        result = await buildProfilesQuery(filters, searchMatchedIds, false);
+    }
+    if (result.error) throw result.error;
+
+    const { data, count } = result;
+
+    const rows = ((data || []) as unknown as ProfileRow[]).map((row) => ({
         ...row,
         organizations: row.organizations ?? null,
     }));
