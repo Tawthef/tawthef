@@ -546,13 +546,11 @@ const AgencyDashboard = () => {
     isLoading,
     error,
     recentSubmissions,
-    recentError,
     activity,
     isActivityLoading,
-    activityError,
   } = useAgencyDashboard();
 
-  const agencyError = error || recentError || activityError;
+  const agencyError = error;
   if (agencyError) {
     return (
       <DashboardLayout>

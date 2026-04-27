@@ -104,28 +104,43 @@ BEGIN
     'shared_by_name',   sp.full_name,
     'candidates',       COALESCE(
       (
+        WITH ordered_candidates AS (
+          SELECT
+            ROW_NUMBER() OVER (ORDER BY a.applied_at) AS sr_no,
+            p.full_name,
+            j2.title                                  AS position_name,
+            cp.location,
+            cp.years_experience,
+            cp.education,
+            cp.skills,
+            cr.certifications_json,
+            ag.name                                   AS agency_name,
+            a.applied_at
+          FROM applications a
+          JOIN profiles p           ON p.id  = a.candidate_id
+          JOIN jobs j2              ON j2.id = a.job_id
+          LEFT JOIN candidate_profiles cp ON cp.candidate_id = a.candidate_id
+          LEFT JOIN candidate_resumes  cr ON cr.candidate_id = a.candidate_id
+          LEFT JOIN organizations      ag ON ag.id = a.agency_id
+          WHERE a.job_id = v_link.job_id
+            AND a.status != 'rejected'
+        )
         SELECT jsonb_agg(
           jsonb_build_object(
-            'sr_no',           row_number() OVER (ORDER BY a.applied_at),
-            'full_name',       p.full_name,
-            'position_name',   j.title,
-            'location',        cp.location,
-            'years_experience', cp.years_experience,
-            'education',       cp.education,
-            'skills',          cp.skills,
-            'certifications',  cr.certifications_json,
-            'agency_name',     ag.name,
-            'submitted_at',    a.applied_at
+            'sr_no',            oc.sr_no,
+            'full_name',        oc.full_name,
+            'position_name',    oc.position_name,
+            'location',         oc.location,
+            'years_experience', oc.years_experience,
+            'education',        oc.education,
+            'skills',           oc.skills,
+            'certifications',   oc.certifications_json,
+            'agency_name',      oc.agency_name,
+            'submitted_at',     oc.applied_at
           )
-          ORDER BY a.applied_at
+          ORDER BY oc.applied_at
         )
-        FROM applications a
-        JOIN profiles p ON p.id = a.candidate_id
-        LEFT JOIN candidate_profiles cp ON cp.candidate_id = a.candidate_id
-        LEFT JOIN candidate_resumes  cr ON cr.candidate_id = a.candidate_id
-        LEFT JOIN organizations      ag ON ag.id = a.agency_id
-        WHERE a.job_id = v_link.job_id
-          AND a.status != 'rejected'
+        FROM ordered_candidates oc
       ),
       '[]'::jsonb
     )

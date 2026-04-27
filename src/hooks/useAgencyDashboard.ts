@@ -87,8 +87,7 @@ export function useAgencyDashboard() {
                     .select('*', { count: 'exact', head: true })
                     .in('application_id', appIds)
                     .eq('status', 'scheduled');
-                if (interviewsError) throw interviewsError;
-                interviewsCount = Number(count || 0);
+                if (!interviewsError) interviewsCount = Number(count || 0);
             }
 
             const inInterviewFromStatus = appRows.filter((row: any) =>
@@ -173,7 +172,7 @@ export function useAgencyDashboard() {
                 .eq('organization_id', orgId)
                 .order('created_at', { ascending: false })
                 .limit(10);
-            if (error) throw error;
+            if (error) return [];
 
             return (data || []) as AgencyRecentActivity[];
         },
