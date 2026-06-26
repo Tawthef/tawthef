@@ -28,3 +28,6 @@ dist-ssr
 
 # Claude Code project settings (contains secrets)
 .claude/settings.json
+
+# Playwright MCP session output (local tooling only)
+.playwright-mcp/
