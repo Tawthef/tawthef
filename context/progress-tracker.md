@@ -376,3 +376,35 @@ Remaining visual work:
 - Netlify build with workspaces not yet tested in a real Netlify preview deploy. The root `npm run build` script is unchanged and Netlify reads from the root, so no regression is expected — but a preview deploy is recommended before the next unit.
 - `packages/` directory does not exist yet (only listed in workspaces pattern). npm ignores missing workspace globs gracefully.
 - No Node version pinned (`.nvmrc` absent). Current local Node: 22.12.0. Recommend adding `.nvmrc` in a follow-up.
+
+### 2026-06-27 — Unit 1.1: Monorepo Stabilization and Netlify Compatibility Verification
+
+**Scope:** Verify Netlify compatibility post-workspaces; pin Node.js version; track context files in git; run clean-install verification; establish git checkpoint.
+
+**Files created:**
+- `.nvmrc` — Node.js 22 LTS
+
+**Files modified:**
+- `CLAUDE.md` — added required prefix, Code Structure section, NestJS/GCP deployment note, updated commands
+- `AGENTS.md` — updated to expanded project-rules format (pre-existing change from /init, included in checkpoint)
+- `context/progress-tracker.md` — Unit 1.1 log entry added
+
+**Files now tracked (previously untracked):**
+- `context/architecture.md`, `context/progress-tracker.md`, `context/project-overview.md`, `context/ui-context.md`, `context/code-standards.md`, `context/ai-workflow-rules.md`
+- `apps/api/**` (all source files; `dist/` excluded by `apps/api/.gitignore`)
+
+**Git checkpoint:** commit `aeab013` — "chore: establish NestJS monorepo foundation"
+
+**Netlify local build result:** PASS — `npm run netlify:build` completed in 13.3s. All 7 Netlify Functions bundled. Frontend built. No workspace-related errors.
+
+**Clean install:** `npm ci` blocked on Windows by VSCode/IDE holding native `.node` (SWC) and `.exe` (esbuild) binaries in memory. This is a Windows dev environment limitation. `npm install` confirmed clean (no changes). Netlify CI (Linux) will run `npm ci` without this constraint.
+
+**Node version:** Pinned to Node.js 22 LTS via `.nvmrc`. All dependencies (Vite 5, NestJS 10, TypeScript 5.8) are compatible. Netlify respects `.nvmrc` automatically.
+
+**Deploy Preview:** READY FOR USER TO TRIGGER — see instructions in Unit 1.1 report.
+
+**Remaining risks:**
+- Netlify Deploy Preview not yet triggered. A preview deploy is required before Unit 2 to confirm workspace + Netlify Functions compatibility in the real build environment.
+- `bun.lockb` (tracked, from scaffolding) and `deno.lock` (tracked, Netlify CLI artifact) remain in git. Neither is actively used. Deletion awaiting explicit approval.
+- `packages/` workspace pattern has no directory yet — npm handles this gracefully.
+- `@nestjs/core` <=11.1.17 has a moderate injection vulnerability in the CLI build chain. Does not affect the health-only runtime. Schedule an upgrade to NestJS 11 as a dedicated unit.
