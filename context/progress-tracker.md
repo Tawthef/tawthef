@@ -408,3 +408,51 @@ Remaining visual work:
 - `bun.lockb` (tracked, from scaffolding) and `deno.lock` (tracked, Netlify CLI artifact) remain in git. Neither is actively used. Deletion awaiting explicit approval.
 - `packages/` workspace pattern has no directory yet — npm handles this gracefully.
 - `@nestjs/core` <=11.1.17 has a moderate injection vulnerability in the CLI build chain. Does not affect the health-only runtime. Schedule an upgrade to NestJS 11 as a dedicated unit.
+
+### 2026-06-27 — Unit 1.2: Safe Netlify Deploy Preview and Production Baseline Verification
+
+**Scope:** Create preview branch, restore AGENTS.md, add `.playwright-mcp/` to `.gitignore`, run full local baseline, push preview branch, prepare Netlify Deploy Preview trigger.
+
+**Branch:** `chore/nestjs-foundation-preview` — pushed to GitHub origin. NOT merged to `main`.
+
+**Files created:**
+- None
+
+**Files modified:**
+- `context/progress-tracker.md` — Unit 1.2 log entry (this entry)
+- `.gitignore` — added `.playwright-mcp/` (see Unit 1.1/1.2 note — committed in `c4d99bb` on preview branch)
+
+**Files restored:**
+- `AGENTS.md` — restored to pre-/init state (commit `695e509`). The `/init` formatting change was unrelated to NestJS work. Restored via `git checkout 695e509 -- AGENTS.md` in commit `c4d99bb`.
+
+**Preview branch commits:**
+```
+c4d99bb chore: restore AGENTS.md and ignore playwright-mcp output
+da1826a docs: add Unit 1.1 stabilization log to progress tracker
+aeab013 chore: establish NestJS monorepo foundation
+```
+
+**Local baseline verification (all PASS):**
+- `npm install` — clean, no changes
+- `npm run typecheck` — 0 errors
+- `npm run lint` — 0 errors (204 pre-existing warnings, unchanged from main)
+- `npm run build` — 3052 modules, 11.45s, `dist/index.html` confirmed
+- `npm run api:build` — `nest build` succeeded, `apps/api/dist/main.js` confirmed
+- `npm run netlify:build` — 7 Functions bundled (create-checkout-session, generate-achievements, generate-summary, improve-summary, parse-resume, polar-webhook, stripe-webhook), 13.6s
+
+**NestJS Security Gate Decision:**
+- `@nestjs/core` <=11.1.17: moderate injection vulnerability (GHSA-36xv-jgw5-4q75)
+- `@nestjs/platform-express` <=11.1.14: depends on vulnerable `multer` (DoS, high)
+- Fix requires upgrade to NestJS 11 (`npm audit fix --force` triggers breaking changes)
+- **Decision:** These vulnerabilities exist in the CLI build chain and `platform-express` file upload layer. The health endpoint does not use file upload. Deploy Preview is safe to proceed for regression testing. NestJS 11 upgrade is REQUIRED as a dedicated unit before any real API functionality is added and before merging to production `main`.
+- **Gate:** Do not merge `chore/nestjs-foundation-preview` to `main` without completing: (a) Netlify Deploy Preview browser regression testing, (b) NestJS 11 upgrade unit.
+
+**Netlify Deploy Preview:** Branch pushed. `gh` CLI not available. User must create PR on GitHub manually to trigger Deploy Preview. URL: https://github.com/Tawthef/tawthef/pull/new/chore/nestjs-foundation-preview
+
+**Browser regression testing:** PENDING — requires Netlify Deploy Preview URL. User to verify: public routes (`/`, `/jobs`, `/jobs/:id`), candidate flow (login, dashboard, profile, onboarding), recruiter flow (login, dashboard, jobs, pipeline, verification), admin flow (login, overview, users, audit logs, organizations), Netlify Functions (resume parsing, AI features), Supabase realtime, storage.
+
+**Remaining risks:**
+- Browser regression testing not yet performed — BLOCKING merge to `main`.
+- NestJS 11 upgrade not yet done — BLOCKING merge to `main` for production readiness.
+- `bun.lockb` and `deno.lock` still tracked in git — deletion pending explicit approval.
+- `packages/` directory does not exist — npm handles gracefully.
