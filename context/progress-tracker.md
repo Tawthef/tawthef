@@ -456,3 +456,63 @@ aeab013 chore: establish NestJS monorepo foundation
 - NestJS 11 upgrade not yet done — BLOCKING merge to `main` for production readiness.
 - `bun.lockb` and `deno.lock` still tracked in git — deletion pending explicit approval.
 - `packages/` directory does not exist — npm handles gracefully.
+
+### 2026-06-27 — Unit 1.3: NestJS 11 Security Upgrade and Foundation Verification
+
+**Scope:** Upgrade `apps/api` from NestJS 10.4.x to NestJS 11.1.27. Resolve the `@nestjs/core` injection advisory (GHSA-36xv-jgw5-4q75). Preserve health endpoint behavior and all existing frontend/Netlify behavior.
+
+**Branch:** `chore/nestjs-foundation-preview` — commit `44bb22c`. NOT merged to `main`.
+
+**NestJS versions before → after:**
+
+| Package | Before | After |
+|---|---|---|
+| `@nestjs/common` | 10.4.22 | 11.1.27 |
+| `@nestjs/core` | 10.4.22 | 11.1.27 |
+| `@nestjs/platform-express` | 10.4.22 | 11.1.27 |
+| `@nestjs/cli` | 10.4.9 | 11.0.23 |
+| `@nestjs/schematics` | 10.2.3 | 11.1.0 |
+| `@types/express` | ^4.17.21 | ^5.0.6 |
+
+**Migration assessment (NestJS 10 → 11):** Node.js ≥20 required (have 22.12.0 ✅). TypeScript ≥5 required (have 5.8.3 ✅). Express 5 used internally by `platform-express@11` — health endpoint has no wildcard routes or Express-specific features, no breaking change. No source changes required.
+
+**Files changed:**
+- `apps/api/package.json` — NestJS version bumps and `@types/express@^5.0.6`
+- `package-lock.json` — dependency resolution updated
+
+**No source changes required.** No frontend, Netlify, or deployment files changed.
+
+**Security audit result:**
+
+*Pre-upgrade:* 24 vulnerabilities (3 low, 13 moderate, 8 high) — API workspace.
+
+*Post-upgrade:* 9 vulnerabilities (1 low, 3 moderate, 5 high) — API workspace.
+
+Resolved advisories:
+- GHSA-36xv-jgw5-4q75 — `@nestjs/core` injection (moderate) ✅
+- GHSA-72gw-mp4g-v24j, GHSA-3p4h-7m6x-2hcm, GHSA-v52c-386h-88mc (3 of 5 multer advisories) ✅
+- GHSA-2g4f-4pwh-qvx6 `ajv` (as `@nestjs/schematics@11` upgraded Angular devkit) ✅
+- `qs`, `body-parser`, `express` DoS advisories (via updated `platform-express@11`) ✅
+- `file-type` infinite loop, ZIP bomb — resolved by `@nestjs/common@11.1.27` ✅
+- `picomatch`, `tmp`, `glob` CLI injection, `inquirer` — resolved by `@nestjs/schematics@11.1.0` ✅
+
+Remaining (9) — none new:
+- `multer` DoS: 2 advisories (GHSA-72gw-mp4g-v24j and GHSA-3p4h-7m6x-2hcm) remain in `platform-express@11.1.27`. Fix requires downgrading to NestJS 7 — unacceptable. Not exploitable without file upload endpoints. Health API has no file upload.
+- `ajv`, `brace-expansion`, `js-yaml`, `lodash`, `minimatch`, `webpack`: in `@nestjs/cli` build tooling (Angular devkit chain). Development-only; not reachable at API runtime.
+
+**Build and runtime verification (all PASS):**
+- `npm install` — clean
+- `npm run typecheck` — 0 errors
+- `npm run lint` — 0 errors, 204 pre-existing warnings (unchanged)
+- `npm run build` — 3052 modules, ~14s, `dist/index.html` confirmed
+- `npm run api:build` — `nest build` succeeded, `apps/api/dist/main.js` confirmed
+- `npm run api:start` → `GET http://localhost:4000/health` → HTTP 200 `{"status":"ok","service":"tawthef-api"}` ✅
+- `npm run api:dev` — watch mode compiled with **0 errors** ✅
+- `npm run netlify:build` — all 7 Functions bundled, 13.5s ✅
+
+**API is local-only.** No production deployment occurred. PR remains draft.
+
+**Remaining risks:**
+- Browser regression testing (Deploy Preview) — BLOCKING merge to `main`.
+- 2 residual multer DoS advisories in `platform-express@11.1.27` — no fix without downgrade; not exploitable with health-only API.
+- 6 dev-only advisories in `@nestjs/cli` Angular devkit chain — CLI build tooling only.
