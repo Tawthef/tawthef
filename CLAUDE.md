@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # Agent Instructions
 
 Read this entire file before starting any task.
@@ -481,24 +485,93 @@ Install:
 
 npm install
 
-Run:
+Run frontend (dev server on port 5173):
 
 npm run dev
 
+Run API (dev watch mode on port 4000):
+
+npm run api:dev
+
 Type check:
 
-npx tsc --noEmit
+npm run typecheck
 
-Build:
+Lint:
+
+npm run lint
+
+Full check (typecheck + lint + build):
+
+npm run check
+
+Build frontend:
 
 npm run build
+
+Build API:
+
+npm run api:build
+
+---
+
+# Code Structure
+
+## Path Alias
+
+`@` maps to `src/` in all frontend imports.
+
+## Key Files
+
+- Entry point: `src/main.tsx` (wraps app with `AuthProvider`)
+- Router + all routes: `src/App.tsx` (lazy-loaded)
+- Supabase client singleton: `src/lib/supabase.ts` — import only from here
+- Tailwind class utility: `src/lib/utils.ts` exports `cn()`
+- Auth context + `useAuth()`: `src/context/AuthContext.tsx`
+
+## Component Layers
+
+- `src/components/ui/` — shadcn/ui primitives — do not modify directly
+- `src/components/` — feature components organized by domain
+- `src/pages/` — one file per route (~50 pages)
+
+## Data Fetching (52 hooks in `src/hooks/`)
+
+All server state goes through React Query hooks. Never fetch Supabase directly inside page or component files.
+
+## Route Protection
+
+- `ProtectedRoute` — requires authenticated session
+- `RoleProtectedRoute` — checks `allowedRoles` against `profiles.role`
+- Recruiter sub-types: `profiles.recruiter_type` = `employer` | `agency`
+
+## Netlify Functions (AI / Payments)
+
+Server-only functions live in `netlify/functions/`. Dev server proxies `/api/*` → `http://localhost:9999/.netlify/functions/*` (requires Netlify CLI on port 9999).
+
+## API (NestJS)
+
+Backend lives in `apps/api/`. Run with `npm run api:dev` on port 4000. Do not add new server-only features to `netlify/functions/` — use `apps/api` instead.
+
+## Database Migrations
+
+SQL files in `database/` are applied manually via Supabase SQL editor. No migration runner. Add new `.sql` files; never edit existing ones.
+
+## Testing
+
+No test framework configured. Verify via `npm run typecheck` and manual browser testing.
+
+## TypeScript
+
+Config is intentionally lenient (`noImplicitAny: false`, `strictNullChecks: false`). Do not add strict-mode fixes unless asked.
 
 ---
 
 # Deployment
 
-Frontend: Netlify  
-Backend: Supabase  
+Current: Frontend on Netlify, backend on Supabase.
+Target (migration in progress): Google Cloud Run + Cloud SQL + Identity Platform.
+See `context/architecture.md` for the full migration plan.
 
 ---
 
