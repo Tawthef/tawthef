@@ -592,3 +592,75 @@ Remaining (9) — none new:
 - bcrypt hash import POC not yet run — required before Identity migration planning can finalize.
 - Cloud Tasks / Cloud Scheduler me-central1 availability not confirmed — must verify before GCP Foundation provisioning unit.
 - Browser regression testing still BLOCKING merge to `main` (carry-forward from Unit 1.3).
+
+### 2026-06-27 — Unit 3: Local NestJS Configuration and Environment Foundation
+
+**Scope:** Add `@nestjs/config` with Zod-based environment validation to the NestJS API. Add Jest test runner. Add `apps/api/.env.example`. Update `.gitignore` files. Bind to `0.0.0.0` for Cloud Run container compatibility. No GCP resources created. No Docker required. No frontend modified.
+
+**Branch:** `chore/google-cloud-foundation` — commit `9f15e27`.
+
+**Configuration library:** `@nestjs/config@^4.0.4` (NestJS 11 compatible; 3.x explicitly excluded NestJS 11 from peer deps). Zod (already in root `package.json` for frontend use; added explicitly to API workspace).
+
+**Environment variables supported:**
+
+| Variable | Type | Default | Validation |
+|---|---|---|---|
+| `NODE_ENV` | enum | `development` | `development \| test \| production` |
+| `PORT` | integer | `4000` | coerced from string, 1–65535 |
+| `LOG_LEVEL` | enum | `log` | `error \| warn \| log \| debug \| verbose` |
+
+**Files created:**
+- `apps/api/src/config/environment.schema.ts` — Zod schema with coercion and defaults
+- `apps/api/src/config/configuration.ts` — load function; validates via Zod, throws descriptive error on failure, returns `{ app: { nodeEnv, port, logLevel } }`
+- `apps/api/src/config/configuration.types.ts` — TypeScript interfaces for Config and AppConfig
+- `apps/api/src/config/configuration.spec.ts` — 13 unit tests for schema and load function
+- `apps/api/.env.example` — safe non-sensitive example values only
+
+**Files modified:**
+- `apps/api/package.json` — added `@nestjs/config@^4.0.4`, `zod@^3.25.76`; added Jest devDependencies (`jest@^29.7.0`, `ts-jest@^29.2.5`, `@types/jest@^29.5.12`); added `test` script and `jest` config block
+- `apps/api/src/app.module.ts` — added `ConfigModule.forRoot({ isGlobal: true, load: [configuration] })`
+- `apps/api/src/main.ts` — port now read via `ConfigService.getOrThrow<number>('app.port')`; listen binds to `0.0.0.0` (required for Cloud Run)
+- `apps/api/.gitignore` — added `.env`, `.env.*`, `!.env.example`, `coverage/`
+- `.gitignore` (root) — added `.env`, `.env.*`, `!**/.env.example`
+- `package-lock.json` — updated for new API workspace dependencies
+
+**Container binding change:** `main.ts` changed from `app.listen(port)` to `app.listen(port, '0.0.0.0')`. Reason: Cloud Run containers must listen on all interfaces, not just localhost. Node.js `http.listen(port)` without a hostname defaults to `::` (IPv6 any) which may not include IPv4 in some container environments. Explicit `0.0.0.0` is the safe and required setting.
+
+**Validation behavior:** If any environment variable fails Zod validation, the NestJS load function throws `Error: Invalid environment configuration:\n  PORT: Expected number, received nan` (or equivalent). NestJS catches this during module initialization and exits with code 1. No secrets or full `process.env` contents are logged.
+
+**Tests (all PASS):**
+
+| Test | Result |
+|---|---|
+| accepts complete valid development config | ✅ |
+| applies defaults when optional variables absent | ✅ |
+| coerces string PORT to number | ✅ |
+| accepts all valid NODE_ENV values | ✅ |
+| accepts all valid LOG_LEVEL values | ✅ |
+| rejects invalid NODE_ENV (`staging`) | ✅ |
+| rejects non-numeric PORT (`invalid`) | ✅ |
+| rejects PORT below range (`0`) | ✅ |
+| rejects PORT above range (`99999`) | ✅ |
+| rejects invalid LOG_LEVEL (`info`) | ✅ |
+| configuration() returns nested app config with defaults | ✅ |
+| configuration() reads PORT from env as number | ✅ |
+| configuration() throws descriptive error for invalid PORT | ✅ |
+
+**Build and runtime verification (all PASS):**
+- `npm install` — clean
+- `npm run typecheck` — 0 errors
+- `npm run lint` — 0 errors, 204 pre-existing warnings (unchanged)
+- `npm run build` — 3052 modules, ~10.7s ✅
+- `npm run api:build` — `nest build` succeeded ✅
+- `GET http://localhost:4000/health` — HTTP 200 `{"status":"ok","service":"tawthef-api"}` ✅
+- `PORT=4100 node dist/main.js` → `GET http://localhost:4100/health` — HTTP 200 ✅
+- `PORT=invalid node dist/main.js` → startup failure with clear error message, exit code 1 ✅
+- `npm run netlify:build` — all 7 Netlify Functions bundled, 12.5s ✅
+- `npm test --workspace=apps/api` — 13 tests passed ✅
+
+**Docker and GCP:** Not started. Deferred to later dedicated units.
+
+**Remaining risks:**
+- bcrypt hash import POC still required before Identity migration planning.
+- Cloud Tasks / Cloud Scheduler me-central1 availability still needs verification.
+- Browser regression testing still BLOCKING merge to `main`.
