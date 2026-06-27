@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Read this entire file before starting any task.
 
-This project is a **React + TypeScript + Supabase SaaS platform** for recruitment (Tawthef).
+This project is a **React + TypeScript SaaS platform** for recruitment (Tawthef), currently migrating from Supabase + Netlify to Google Cloud (Firebase Hosting + Cloud Run + Cloud SQL + Identity Platform).
 
 It includes:
 
@@ -144,9 +144,19 @@ Frontend
 - TailwindCSS
 - React Query
 
-Backend
+Current Backend (active — do not break during migration)
 
 - Supabase (Auth + Database + Storage + Realtime)
+- Netlify Functions (server-only: OpenAI, Polar, Stripe)
+
+Target Backend (migration in progress — incremental, domain by domain)
+
+- NestJS modular monolith (`apps/api`) on Google Cloud Run
+- Cloud SQL PostgreSQL 16 (via Prisma ORM)
+- Google Cloud Identity Platform (replaces Supabase Auth)
+- Google Cloud Storage (replaces Supabase Storage)
+- Firebase Hosting (replaces Netlify for the React/Vite frontend)
+- GCP projects: tawthef-dev / tawthef-staging / tawthef-prod | Region: me-central1
 
 ---
 
@@ -196,7 +206,7 @@ Rules:
 
 # Authentication Rules
 
-- Supabase Auth is the source of truth
+- Supabase Auth is the source of truth during the migration period; Google Cloud Identity Platform is the approved replacement (Identity migration not yet started — do not move auth until approved)
 - profiles table extends user data
 - Roles:
 
@@ -378,18 +388,21 @@ Use audit_logs table + triggers.
 
 ---
 
-# Storage Rules (Supabase)
+# Storage Rules (Supabase — current; Google Cloud Storage — target)
 
 Buckets:
 
-avatars → profile images  
-recruiter_documents → verification files  
+avatars → profile images (public bucket; public URLs acceptable)  
+recruiter_documents → verification files (**private** — signed URLs only; never public URLs)  
+candidate_resumes → candidate resume files (**private** — signed URLs only; never public URLs)  
+candidate_verification_documents → candidate verification docs (**private** — signed URLs only; never public URLs)  
 
 Rules:
 
 - Always use correct bucket name
 - Ensure RLS policies allow upload
-- Store public URLs in DB
+- Use signed URLs for all private buckets — never store or return public URLs for private files
+- Avatars may use public URLs only if the bucket is intentionally configured as public
 
 ---
 
@@ -569,9 +582,17 @@ Config is intentionally lenient (`noImplicitAny: false`, `strictNullChecks: fals
 
 # Deployment
 
-Current: Frontend on Netlify, backend on Supabase.
-Target (migration in progress): Google Cloud Run + Cloud SQL + Identity Platform.
-See `context/architecture.md` for the full migration plan.
+Current: Frontend on Netlify, backend on Supabase (no changes to existing system during migration).
+
+Target (migration in progress — incremental):
+- Frontend: Firebase Hosting (global CDN, SPA rewrites)
+- API: NestJS on Google Cloud Run
+- Database: Cloud SQL PostgreSQL 16 (Prisma ORM)
+- Identity: Google Cloud Identity Platform (existing Supabase UUIDs preserved as Identity Platform UIDs)
+- Files: Google Cloud Storage (private buckets use signed URLs)
+- GCP projects: tawthef-dev / tawthef-staging / tawthef-prod | Region: me-central1
+
+See `context/architecture.md` for the full migration plan and invariants.
 
 ---
 
@@ -616,3 +637,7 @@ Rules:
 4. [ARCH] Always use React Query hooks for data — prevents inconsistent fetching logic.
 5. [STYLE] Maintain consistent dashboard card layout — avoid redesigning per page.
 6. [DATA] Never insert demo data into production tables — use separate seed scripts only.
+7. [ARCH] Never add new Netlify Functions for new features — new server-side work goes in `apps/api` (NestJS).
+8. [ARCH] Never mix GCP migration units and product feature units in the same commit — keep workstreams separate to preserve rollback safety.
+9. [DATA] Never use real PII in tawthef-dev or tawthef-staging — anonymized data only.
+10. [ARCH] Never generate public URLs for private storage buckets (recruiter_documents, candidate_resumes, candidate_verification_documents) — always use signed URLs.

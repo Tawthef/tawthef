@@ -1,5 +1,16 @@
 # Tawthef AI Development Workflow Rules
 
+## Migration Workstream Separation
+
+The GCP migration runs in parallel with ongoing product development. Keep these two workstreams strictly separate:
+
+- Do not mix product feature changes with infrastructure migration units in the same commit or PR.
+- Do not modify a domain (auth, database, storage, realtime, payments) in product work while it is actively being migrated in a parallel unit.
+- GCP migration units target `context/`, `apps/api/`, or migration tooling only — they do not modify `src/`, `netlify/functions/`, or `database/` SQL files.
+- Product units target `src/`, `netlify/functions/`, `database/`, and `context/` — they do not create GCP infrastructure or modify `apps/api/` unless the task explicitly concerns the NestJS API.
+- Supabase Auth, Database, Storage, and Realtime remain the live source of truth until each domain's replacement passes its independent verification gate.
+- If a product unit would touch a domain currently being migrated, stop and report the conflict before proceeding.
+
 ## Approach
 
 Build Tawthef incrementally using a specification-driven, production-safe workflow.
@@ -114,12 +125,14 @@ Do not modify unless directly required:
 - Generated shadcn primitives
 - Third-party package internals
 - Historical applied migrations
-- Central Supabase client
+- Central Supabase client (temporary source; do not move it until Identity Platform migration is approved and complete)
 - Working authentication guards
 - Working React Query hooks unrelated to the task
 - Production environment configuration
 - Stripe activation flags
 - Unrelated CLAUDE/context rules
+- `apps/api/src/` during product feature units (unless the task explicitly concerns the NestJS API)
+- GCP infrastructure configuration during product feature units
 
 ## Feature Unit Template
 

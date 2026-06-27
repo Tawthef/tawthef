@@ -21,7 +21,7 @@ In the user interface, employers and agencies are collectively displayed as **Re
 3. Provide trustworthy candidate information through English assessment and optional verification services.
 4. Use AI to assist CV creation, matching, ranking, summaries, and recommendations without replacing human decisions.
 5. Provide administrators with reliable controls, auditability, analytics, subscriptions, verification operations, and platform governance.
-6. Maintain a secure, scalable Supabase-based architecture without introducing a custom backend.
+6. Migrate to a secure, scalable Google Cloud architecture with NestJS as the custom backend, incrementally replacing Supabase-managed services without disrupting the live application.
 
 ## Core Candidate Journey
 
@@ -245,11 +245,12 @@ Access must depend on recruiter verification, subscription entitlement, candidat
 
 ## In Scope
 
-- Existing React/Vite/Supabase application
+- Existing React/Vite/Supabase application (must remain operational throughout migration)
 - Candidate, recruiter, admin, and approved expert workflows
-- Supabase Auth, Database, Storage, Realtime, RPC, and RLS
+- Supabase Auth, Database, Storage, Realtime, RPC, and RLS (active source of truth until each domain's GCP replacement is verified)
+- NestJS modular monolith API (`apps/api`) on Google Cloud Run
+- Incremental GCP migration: Firebase Hosting, Cloud Run, Cloud SQL, Identity Platform, Cloud Storage
 - OpenAI-powered recruitment assistance
-- Netlify deployment
 - Responsive web experience
 - Real production data
 - Audited administrative operations
@@ -257,9 +258,7 @@ Access must depend on recruiter verification, subscription entitlement, candidat
 
 ## Out of Scope Unless Explicitly Approved
 
-- Express or a custom Node backend
-- Next.js backend migration
-- Replacing Supabase
+- Next.js
 - Replacing React Query
 - Replacing OpenAI
 - Native mobile applications
@@ -268,6 +267,7 @@ Access must depend on recruiter verification, subscription entitlement, candidat
 - Automated final hiring decisions without human control
 - Large rewrites of working features
 - Production mock data
+- Big-bang Supabase replacement (each domain must be migrated and verified independently)
 
 ## Current Priority
 
@@ -280,11 +280,12 @@ Access must depend on recruiter verification, subscription entitlement, candidat
 7. Add recruiter sharing and referral tracking.
 8. Activate Stripe only after client approval.
 9. Expand analytics, reporting, notifications, billing, and settings.
+10. Execute GCP migration incrementally: each domain (database, identity, storage, realtime, payments) in separate approved units; existing system must remain operational throughout.
 
 ## Success Criteria
 
 1. Existing working flows remain functional after each release.
-2. Every screen uses real Supabase data.
+2. Every screen uses real data from the active source system.
 3. Data fetching is implemented through React Query hooks.
 4. Authorization is enforced through RLS, RPC, secure functions, or existing secure boundaries.
 5. Candidate and recruiter journeys are understandable end to end.
@@ -293,3 +294,4 @@ Access must depend on recruiter verification, subscription entitlement, candidat
 8. Candidate private information is not exposed outside approved visibility rules.
 9. Important administrative and recruitment actions are auditable.
 10. `npm run build` passes after each implementation unit.
+11. GCP migration units do not break existing Supabase-powered functionality; each domain replacement passes its own independent verification gate before cutover.

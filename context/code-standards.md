@@ -16,7 +16,7 @@
 - Use TypeScript throughout application code.
 - Preserve strictness configured by the repository.
 - Avoid `any`.
-- Prefer generated Supabase database types where available.
+- Prefer generated Supabase database types for frontend queries; prefer Prisma-generated types for NestJS (Cloud SQL) code.
 - Define narrow interfaces for derived UI data.
 - Treat external input and database JSON as unknown until validated.
 - Avoid unsafe type assertions.
@@ -65,7 +65,7 @@
 
 ## Authentication
 
-- Supabase Auth is the identity source of truth.
+- Supabase Auth is the identity source of truth during the migration period; Google Cloud Identity Platform is the approved replacement (migration not yet started).
 - `profiles.id` must match `auth.users.id`.
 - Read roles from trusted profile data.
 - Do not infer authorization from URL paths.
@@ -130,7 +130,9 @@ Do not use a permissive policy as a temporary production fix.
 
 ## Netlify Functions
 
-Use only when a server-only boundary is required, such as:
+Existing Netlify Functions remain active and must not be broken. Do not add new Netlify Functions for new features — use `apps/api` (NestJS) instead.
+
+Existing functions cover:
 
 - OpenAI API calls
 - Existing Stripe integration
@@ -146,7 +148,19 @@ Rules:
 - Do not log secrets or document contents.
 - Return consistent error shapes.
 - Keep functions narrowly scoped.
-- Do not turn Netlify Functions into a parallel custom backend.
+
+## NestJS API
+
+New server-side work goes into `apps/api/src/`.
+
+- Use NestJS modules, controllers, and services.
+- Inject dependencies via the NestJS DI container; keep controllers thin.
+- Prefer Prisma-generated types once Cloud SQL is the active database.
+- Do not place service-role, Cloud SQL credentials, or GCP service account keys in client code.
+- Never trust client-supplied user IDs or organization IDs without verification.
+- Validate authentication before accessing protected resources.
+- Return consistent error shapes.
+- Do not add new Netlify Functions for features that belong in `apps/api`.
 
 ## OpenAI
 
@@ -261,8 +275,9 @@ Follow existing repository structure. Typical guidance:
 - `src/lib/` — clients and helpers
 - `src/features/` — feature-owned code when the repository uses this pattern
 - `src/types/` — shared types
-- `netlify/functions/` — narrow server-only handlers
-- `supabase/migrations/` — schema and policy changes
+- `netlify/functions/` — existing narrow server-only handlers (do not add new ones)
+- `apps/api/src/` — NestJS modules, controllers, services for new server-side work
+- `supabase/migrations/` — schema and policy changes (historical; Prisma takes over after Cloud SQL cutover)
 - `context/` — project documentation
 
 Do not reorganize the repository unless explicitly requested.

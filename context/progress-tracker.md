@@ -326,6 +326,16 @@ Remaining visual work:
 15. npm workspaces are the required repository structure. Package manager remains npm only.
 16. The React frontend stays at the repository root (Option A). Moving it to `apps/web` is a separate future unit requiring explicit approval.
 17. New server-side features go into `apps/api`, not into new Netlify Functions.
+18. Firebase Hosting hosts the frontend; Cloud Run hosts the NestJS API. Cloud Run does not host the frontend.
+19. Three GCP projects: tawthef-dev, tawthef-staging, tawthef-prod. Preferred region: me-central1.
+20. Identity Platform UIDs are the existing Supabase auth.users.id UUIDs preserved directly — no mapping table.
+21. Password migration: attempt bcrypt hash import via Identity Platform importUsers API first; forced password reset is fallback only.
+22. Cloud Run uses the native Cloud SQL connector. PgBouncer is optional and must not be added without explicit approval.
+23. recruiter_documents, candidate_resumes, and candidate_verification_documents are private — always use signed URLs.
+24. Staging environments (tawthef-dev, tawthef-staging) use anonymized data only — no real PII.
+25. No new Netlify Functions or Netlify Deploy Preview work during GCP migration.
+26. GCP migration units and product feature units must be kept in separate commits and PRs.
+27. Cloud Tasks and Cloud Scheduler availability in me-central1 must be verified before provisioning; Pub/Sub push subscriptions are the approved fallback.
 
 ## Session Notes
 
@@ -513,6 +523,72 @@ Remaining (9) — none new:
 **API is local-only.** No production deployment occurred. PR remains draft.
 
 **Remaining risks:**
-- Browser regression testing (Deploy Preview) — BLOCKING merge to `main`.
+- Browser regression testing (Deploy Preview) — BLOCKING merge to `main` (Netlify Deploy Preview workflow cancelled; manual regression test required before merge).
 - 2 residual multer DoS advisories in `platform-express@11.1.27` — no fix without downgrade; not exploitable with health-only API.
 - 6 dev-only advisories in `@nestjs/cli` Angular devkit chain — CLI build tooling only.
+
+### 2026-06-27 — Unit 2: Full Google Cloud Migration Audit and Foundation Plan
+
+**Scope:** Read-only audit. No files changed. No infrastructure created.
+
+**Audit findings documented (in conversation, not in files):**
+- Complete dependency map: 22 confirmed tables, 50+ RPCs, 8 realtime channels, 60+ RLS policies, 7 Netlify Functions, 3 Supabase Storage buckets
+- 17+ tables FK-reference auth.users.id — all preserved via direct UID mapping
+- on_auth_user_created trigger is the most critical migration target (becomes NestJS auth/register endpoint)
+- Polar.sh for payments (create-checkout-session, polar-webhook); Stripe deprecated (returns 410)
+- Proposed NestJS module map: auth, candidates, recruiters, jobs, applications, admin, ai, subscriptions, realtime
+- Proposed 15-phase migration plan approved for planning purposes
+- Cloud SQL connection: Cloud Run native connector (Unix socket via Cloud SQL Auth Proxy); PgBouncer optional/future
+
+**Output:** Comprehensive audit report. Waiting for architecture approval → led directly to Unit 2.1.
+
+### 2026-06-27 — Unit 2.1: Google Cloud Architecture Decision Lock and Supabase Auth Export Feasibility Audit
+
+**Scope:** Lock 12 architecture decisions into context files. Audit Supabase Auth export feasibility. Create GCP foundation branch. No product code changed.
+
+**Branch created:** `chore/google-cloud-foundation` — from tip of `chore/nestjs-foundation-preview`. All GCP infrastructure work proceeds on this branch.
+
+**12 Architecture Decisions Locked:**
+
+| # | Decision |
+|---|---|
+| 1 | Three GCP projects: tawthef-dev, tawthef-staging, tawthef-prod |
+| 2 | Preferred region: me-central1 (Cloud Tasks and Cloud Scheduler availability must be verified) |
+| 3 | Frontend hosting: Firebase Hosting (SPA rewrites, global CDN, native Identity Platform integration) |
+| 4 | Backend: NestJS modular monolith on Google Cloud Run |
+| 5 | Database: Cloud SQL PostgreSQL 16 (prod HA, staging single-zone, dev small single-zone) |
+| 6 | ORM: Prisma (authoritative after Cloud SQL cutover; existing Supabase migrations are historical records only) |
+| 7 | Files: recruiter_documents, candidate_resumes, candidate_verification_documents = private (signed URLs); avatars may remain public |
+| 8 | Staging data: anonymized only — no real PII in tawthef-dev or tawthef-staging |
+| 9 | Identity: preserve existing Supabase UUID directly as Identity Platform UID; no tawthef_uid custom claim unless direct preservation is impossible |
+| 10 | Password migration: attempt bcrypt hash import first; forced password reset is fallback only |
+| 11 | Existing platform: Supabase and Netlify untouched until GCP replacement passes gates; no new Netlify development |
+| 12 | Product development: may continue in parallel; avoid large changes to any domain being actively migrated |
+
+**Supabase Auth Export Feasibility (Parts B–D):**
+
+- **auth.users schema**: `encrypted_password TEXT` (bcrypt, `$2a$10$...` format); `auth.identities` table stores OAuth providers and identity_data JSONB. Accessible via service_role API or pg_dump.
+- **UID preservation (Part D)**: FEASIBLE. Identity Platform UIDs accept any string up to 128 characters. Supabase UUID format (36 chars including hyphens) is valid as an Identity Platform UID. Direct preservation eliminates the need for a mapping table and preserves all FK relationships to auth.users.id.
+- **bcrypt hash import (Part C)**: APPEARS FEASIBLE — POC REQUIRED. Identity Platform `importUsers` Admin SDK API supports `hashAlgorithm: "BCRYPT"` with no separate salt field (salt is embedded in the full bcrypt hash string). Supabase bcrypt format (`$2a$10$...`) should be accepted as the passwordHash field. A disposable test account POC is required to confirm before migration planning proceeds.
+
+**Cloud SQL connection (Part E):** Cloud Run native Cloud SQL connector (Unix socket via Cloud SQL Auth Proxy sidecar) — no PgBouncer required initially. PgBouncer is an optional future optimization only.
+
+**me-central1 regional availability (Part F):**
+- ✅ Available: Cloud Run, Cloud SQL (PostgreSQL), Artifact Registry, Cloud Storage, Secret Manager, Pub/Sub, Cloud Run Jobs, Firebase Hosting (global CDN), Identity Platform (global)
+- ⚠️ Verify before provisioning: Cloud Tasks and Cloud Scheduler — limited regional rollout; me-central1 availability not confirmed at decision lock date
+- Approved fallback: Pub/Sub push subscriptions replace Cloud Tasks for async work; Cloud Scheduler jobs may be defined in an adjacent region if me-central1 unavailable
+
+**Files changed:**
+- `context/architecture.md` — updated Approved Target Stack (Firebase Hosting + Cloud Run split), updated Target deployment section, added architectural invariants 22–28
+- `context/project-overview.md` — fixed Goal 6, updated In Scope / Out of Scope, updated Current Priority and Success Criteria
+- `context/code-standards.md` — qualified Supabase Auth statement, updated Netlify Functions section, added NestJS API section, updated File Organization, updated TypeScript section
+- `context/ai-workflow-rules.md` — added Migration Workstream Separation section, updated Protected Files list
+- `CLAUDE.md` — updated project description, Project Architecture (Backend), Authentication Rules, Storage Rules, Deployment section, added learned rules 7–10
+- `context/progress-tracker.md` — added architecture decisions 18–27, added Unit 2 and Unit 2.1 log entries
+
+**Build verification:** No application code changed. `npm run build`, `npm run typecheck`, `npm run api:build` remain PASS from Unit 1.3 baseline.
+
+**Remaining risks:**
+- bcrypt hash import POC not yet run — required before Identity migration planning can finalize.
+- Cloud Tasks / Cloud Scheduler me-central1 availability not confirmed — must verify before GCP Foundation provisioning unit.
+- Browser regression testing still BLOCKING merge to `main` (carry-forward from Unit 1.3).

@@ -32,9 +32,10 @@
 | Events | Pub/Sub | Decouples services for async workflows |
 | Batch | Cloud Run Jobs | Replaces Netlify Functions for heavy batch operations |
 | Secrets | Secret Manager | Replaces environment-variable secrets management |
-| Hosting | Google Cloud Run | Replaces Netlify for both frontend and API |
+| Frontend hosting | Firebase Hosting | Replaces Netlify for the React/Vite SPA (SPA rewrites, global CDN, native Identity Platform integration) |
+| API hosting | Google Cloud Run | Hosts the NestJS modular monolith and async job runners |
 | Observability | Cloud Logging and Monitoring | Replaces ad-hoc logging |
-| Repository structure | npm workspaces monorepo | `apps/web` (future), `apps/api`, `packages/` |
+| Repository structure | npm workspaces monorepo | `apps/api`, `packages/` (frontend stays at repository root) |
 
 ## Migration Principles
 
@@ -255,12 +256,15 @@ Current (unchanged during migration):
 
 Target (future, incremental):
 
-- Google Cloud Run hosts both the NestJS API and eventually the frontend.
+- Firebase Hosting serves the React/Vite frontend (SPA rewrites, global CDN).
+- Google Cloud Run hosts the NestJS API and async job runners.
 - Cloud SQL (PostgreSQL) hosts application data.
 - Google Cloud Identity Platform handles authentication.
 - Google Cloud Storage handles files.
 - Cloud Tasks, Pub/Sub, Cloud Scheduler, and Cloud Run Jobs handle async work.
 - Secret Manager handles secrets.
+- Three GCP projects: tawthef-dev (development), tawthef-staging (pre-production, anonymized data only), tawthef-prod (production).
+- Preferred region: me-central1.
 
 ## Architectural Invariants
 
@@ -285,3 +289,10 @@ Target (future, incremental):
 19. NestJS is approved as the backend framework for `apps/api`.
 20. Migration of each domain (auth, database, storage, realtime, payments) must be approved separately before implementation begins.
 21. No big-bang Supabase replacement. Supabase remains active until each domain's replacement is verified in production.
+22. Firebase Hosting serves the frontend; Cloud Run serves the NestJS API. Cloud Run does not host the frontend.
+23. Three GCP projects: tawthef-dev, tawthef-staging, tawthef-prod. Preferred region: me-central1. Verify Cloud Tasks and Cloud Scheduler availability in me-central1 before provisioning; Pub/Sub push subscriptions are the approved fallback.
+24. Identity Platform UIDs are the existing Supabase `auth.users.id` UUIDs preserved directly. No mapping table is needed. Password migration attempts bcrypt hash import via the Identity Platform `importUsers` API first; forced password reset is the fallback only.
+25. Cloud Run uses the native Cloud SQL connector (Unix socket). PgBouncer is optional and must not be added unless explicitly approved.
+26. `recruiter_documents`, `candidate_resumes`, and `candidate_verification_documents` are private. All three buckets use signed URLs. Never generate public URLs for private buckets. `avatars` may remain public only if the bucket is intentionally configured as public.
+27. Staging environments use anonymized data only. No real PII in tawthef-dev or tawthef-staging.
+28. No new work begins on Netlify Functions or Netlify Deploy Preview during the GCP migration. New server-side features go into `apps/api`.
