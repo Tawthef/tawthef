@@ -1,0 +1,11 @@
+// Target: Cloud SQL PostgreSQL 16, region me-central1
+// Business models are added in a later unit after full schema review and approval.
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}

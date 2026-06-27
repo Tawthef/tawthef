@@ -664,3 +664,91 @@ Remaining (9) — none new:
 - bcrypt hash import POC still required before Identity migration planning.
 - Cloud Tasks / Cloud Scheduler me-central1 availability still needs verification.
 - Browser regression testing still BLOCKING merge to `main`.
+
+### 2026-06-27 — Unit 4: Local PostgreSQL and Prisma Tooling Foundation
+
+**Scope:** Install Prisma ORM tooling, extend environment validation with DATABASE_ENABLED/DATABASE_URL, create DatabaseModule with optional connectivity, wire optional database status into the health endpoint, and produce a full Supabase→Prisma schema inventory document. PostgreSQL 16 confirmed running locally. No GCP resources created. No Docker required. No frontend modified. No Supabase writes.
+
+**Branch:** `chore/google-cloud-foundation` — commit `feat(api): establish local Prisma database foundation`.
+
+**Prisma version:** 6.19.3 (latest stable; supports PostgreSQL 16)
+
+**Environment variables added:**
+
+| Variable | Type | Default | Validation |
+|---|---|---|---|
+| `DATABASE_ENABLED` | enum→boolean | `false` | explicit `'true'\|'false'` enum + transform; prevents `"false"` string being truthy |
+| `DATABASE_URL` | string (optional) | — | must start with `postgresql://`; required when `DATABASE_ENABLED=true` |
+
+**Files created:**
+- `apps/api/prisma/schema.prisma` — datasource (PostgreSQL 16) + generator only; no business models yet
+- `apps/api/src/database/prisma.service.ts` — composition approach (PrismaClient as private field, NOT extends); PrismaClient never instantiated when disabled
+- `apps/api/src/database/database.module.ts` — `@Global()` module exporting PrismaService and DatabaseHealthService
+- `apps/api/src/database/database-health.service.ts` — `check()` returns `{ status: 'connected' | 'disabled' | 'error', latencyMs? }`
+- `docs/database/supabase-to-prisma-inventory.md` — complete inventory of all 24 tables across 33 SQL files
+
+**Files modified:**
+- `apps/api/package.json` — added `@prisma/client@^6.0.0` (dep), `prisma@^6.0.0` (devDep), added 6 prisma scripts
+- `apps/api/src/config/environment.schema.ts` — added DATABASE_ENABLED + DATABASE_URL with cross-field superRefine
+- `apps/api/src/config/configuration.ts` — added `database: { enabled, url }` to returned config object
+- `apps/api/src/config/configuration.types.ts` — added `DatabaseConfig` interface; updated `Config`
+- `apps/api/src/config/configuration.spec.ts` — added 8 new tests (21 total, all pass)
+- `apps/api/src/health/health.controller.ts` — async `check()` calls `DatabaseHealthService.check()`, adds `database` field to response
+- `apps/api/src/health/health.module.ts` — imports `DatabaseModule`
+- `apps/api/src/app.module.ts` — imports `DatabaseModule`
+- `apps/api/.env.example` — added `DATABASE_ENABLED=false` and commented `DATABASE_URL` example
+- `package.json` (root) — added `api:test` script
+
+**Design decisions:**
+- Composition over inheritance for PrismaService: avoids URL-at-instantiation error when DATABASE_ENABLED=false. `new PrismaClient()` is only called when enabled.
+- `DATABASE_ENABLED` uses explicit enum `['true', 'false']` with `.transform()` — not `z.coerce.boolean()` — because `"false"` would coerce to `true` (truthy string).
+- `prisma validate` requires `DATABASE_URL` in `process.env` — expected to fail when DATABASE_ENABLED=false; `prisma format` and `prisma generate` both succeed without it.
+- Health endpoint always shows `database` field: `{ status: 'disabled' }` when off, `{ status: 'connected', latencyMs }` when connected, `{ status: 'error' }` on failure.
+
+**Local PostgreSQL prerequisites (must be done manually by user):**
+
+Run the following SQL in `psql` as superuser to create the role and database:
+
+```sql
+CREATE ROLE tawthef_app WITH LOGIN PASSWORD 'CHANGE_ME';
+CREATE DATABASE tawthef_dev OWNER tawthef_app;
+\c tawthef_dev
+CREATE SCHEMA IF NOT EXISTS public AUTHORIZATION tawthef_app;
+GRANT ALL PRIVILEGES ON DATABASE tawthef_dev TO tawthef_app;
+```
+
+Then copy `.env.example` to `.env` in `apps/api/`, update `DATABASE_URL` with the real password, and set `DATABASE_ENABLED=true` to test the connected path.
+
+**Supabase → Prisma schema inventory:** 24 tables documented across 5 categories. All tables inventoried. Prisma business models deferred to next unit pending full design review.
+
+**Tests (all PASS — 21 total):**
+
+| New Tests | Result |
+|---|---|
+| DATABASE_ENABLED defaults to false | ✅ |
+| transforms "true" string to boolean true | ✅ |
+| transforms "false" string to boolean false | ✅ |
+| rejects invalid DATABASE_ENABLED ("yes") | ✅ |
+| DATABASE_URL optional when DATABASE_ENABLED=false | ✅ |
+| accepts valid postgresql:// DATABASE_URL | ✅ |
+| rejects DATABASE_URL without postgresql:// prefix | ✅ |
+| requires DATABASE_URL when DATABASE_ENABLED=true | ✅ |
+
+**Build and runtime verification (all PASS):**
+- `npm install` — Prisma 6.19.3 + @prisma/client installed clean ✅
+- `npm run prisma:generate` — Prisma Client generated successfully ✅
+- `npm run prisma:format` — schema formatted ✅
+- `npm run typecheck` — 0 errors ✅
+- `npm run lint` — 0 errors, 204 pre-existing warnings (unchanged) ✅
+- `npm run api:build` — `nest build` succeeded ✅
+- `npm run api:test` — 21/21 tests passed ✅
+- `npm run netlify:build` — all 7 Netlify Functions bundled ✅
+- `DATABASE_ENABLED=false PORT=4001 node dist/main.js` → `GET /health` → `{"status":"ok","service":"tawthef-api","database":{"status":"disabled"}}` ✅
+
+**Note:** `prisma:validate` requires `DATABASE_URL` to be set — this command will fail locally when `DATABASE_ENABLED=false` (expected). `prisma:status` and `prisma:migrate:dev` also require a live database connection and must be run after completing the manual SQL setup above.
+
+**Remaining risks:**
+- Prisma business models (all 24 tables) deferred to next unit — requires design review of Prisma schema before any migrations are created.
+- bcrypt hash import POC still required before Identity migration planning.
+- Cloud Tasks / Cloud Scheduler me-central1 availability still needs verification.
+- Browser regression testing still BLOCKING merge to `main`.

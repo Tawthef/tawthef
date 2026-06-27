@@ -77,6 +77,66 @@ describe('environmentSchema', () => {
       expect(result.success).toBe(false);
     });
   });
+
+  describe('DATABASE_ENABLED', () => {
+    it('defaults DATABASE_ENABLED to false', () => {
+      const result = environmentSchema.safeParse({});
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.DATABASE_ENABLED).toBe(false);
+      }
+    });
+
+    it('transforms "true" string to boolean true', () => {
+      const result = environmentSchema.safeParse({
+        DATABASE_ENABLED: 'true',
+        DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.DATABASE_ENABLED).toBe(true);
+      }
+    });
+
+    it('transforms "false" string to boolean false', () => {
+      const result = environmentSchema.safeParse({ DATABASE_ENABLED: 'false' });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.DATABASE_ENABLED).toBe(false);
+      }
+    });
+
+    it('rejects invalid DATABASE_ENABLED values', () => {
+      const result = environmentSchema.safeParse({ DATABASE_ENABLED: 'yes' });
+      expect(result.success).toBe(false);
+    });
+
+    it('DATABASE_URL is optional when DATABASE_ENABLED is false', () => {
+      const result = environmentSchema.safeParse({ DATABASE_ENABLED: 'false' });
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts a valid postgresql:// DATABASE_URL', () => {
+      const result = environmentSchema.safeParse({
+        DATABASE_ENABLED: 'true',
+        DATABASE_URL: 'postgresql://tawthef_app:secret@localhost:5432/tawthef_dev',
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('rejects a DATABASE_URL that does not start with postgresql://', () => {
+      const result = environmentSchema.safeParse({
+        DATABASE_ENABLED: 'true',
+        DATABASE_URL: 'mysql://user:pass@localhost:3306/db',
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('requires DATABASE_URL when DATABASE_ENABLED is true', () => {
+      const result = environmentSchema.safeParse({ DATABASE_ENABLED: 'true' });
+      expect(result.success).toBe(false);
+    });
+  });
 });
 
 describe('configuration()', () => {

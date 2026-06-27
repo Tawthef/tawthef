@@ -10,13 +10,18 @@ export default (): Record<string, unknown> => {
     throw new Error(`Invalid environment configuration:\n${messages}`);
   }
 
-  const { NODE_ENV, PORT, LOG_LEVEL } = result.data;
+  const { NODE_ENV, PORT, LOG_LEVEL, DATABASE_ENABLED, DATABASE_URL } =
+    result.data;
 
   return {
     app: {
       nodeEnv: NODE_ENV,
       port: PORT,
       logLevel: LOG_LEVEL,
+    },
+    database: {
+      enabled: DATABASE_ENABLED,
+      url: DATABASE_URL,
     },
   };
 };

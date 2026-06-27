@@ -4,6 +4,12 @@ export interface AppConfig {
   logLevel: 'error' | 'warn' | 'log' | 'debug' | 'verbose';
 }
 
+export interface DatabaseConfig {
+  enabled: boolean;
+  url: string | undefined;
+}
+
 export interface Config {
   app: AppConfig;
+  database: DatabaseConfig;
 }
