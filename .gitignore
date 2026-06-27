@@ -31,3 +31,8 @@ dist-ssr
 
 # Playwright MCP session output (local tooling only)
 .playwright-mcp/
+
+# Environment files (never commit real credentials)
+.env
+.env.*
+!**/.env.example
